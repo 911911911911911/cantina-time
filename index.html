@@ -21,12 +21,12 @@
       border-radius: 20px;
       padding: 24px;
       width: 100%;
-      max-width: 380px;
+      max-width: 400px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.3);
       text-align: center;
     }
-    h1 { font-size: 1.4rem; margin-bottom: 8px; }
-    p.subtitle { color: #94a3b8; font-size: 0.9rem; margin-top: 0; margin-bottom: 24px; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    p.subtitle { color: #94a3b8; font-size: 0.85rem; margin-top: 0; margin-bottom: 20px; }
     label { display: block; text-align: left; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 6px; }
     select {
       width: 100%;
@@ -35,10 +35,23 @@
       border: 1px solid #334155;
       background-color: #0f172a;
       color: #fff;
-      font-size: 1rem;
-      margin-bottom: 20px;
+      font-size: 0.95rem;
+      margin-bottom: 16px;
       outline: none;
     }
+    .schank-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #0f172a;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .schank-box input { width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer; }
+    .schank-box span { font-size: 0.9rem; color: #f1f5f9; }
     .btn-group { display: flex; gap: 12px; }
     button {
       flex: 1;
@@ -71,13 +84,46 @@
     <h1>Cantina Zeiterfassung</h1>
     <p class="subtitle">Arbeitszeit erfassen</p>
 
-    <label for="employee">Mitarbeiter:</label>
-    <select id="employee">
-      <option value="Leni">Leni</option>
-      <option value="Anton">Anton</option>
-      <option value="Vesela">Vesela</option>
-      <option value="Andrey">Andrey</option>
+    <label for="employee">Mitarbeiter auswählen:</label>
+    <select id="employee" onchange="toggleSchankOption()">
+      <optgroup label="Festangestellte">
+        <option value="Bassemir Sandra" data-fest="true">Bassemir Sandra (00645)</option>
+        <option value="Carababas Anna" data-fest="true">Carababas Anna (00037)</option>
+        <option value="Dhillon Kashmir Kaur" data-fest="true">Dhillon Kashmir Kaur (00074)</option>
+        <option value="Gorcheva Vesela" data-fest="true">Gorcheva Vesela (00002)</option>
+        <option value="Erhabor Friday" data-fest="true">Erhabor Friday (00533)</option>
+        <option value="Maksimovic Marko" data-fest="true">Maksimovic Marko (00095)</option>
+        <option value="Oluru Collins" data-fest="true">Oluru Collins (00639)</option>
+        <option value="Lulic Annamarija" data-fest="true">Lulic Annamarija (00086)</option>
+        <option value="Quilola Amelina" data-fest="true">Quilola Amelina (00091)</option>
+        <option value="Podskarby Yvonna" data-fest="true">Podskarby Yvonna (00589)</option>
+        <option value="Novic Svitlana" data-fest="true">Novic Svitlana (00039)</option>
+        <option value="Baddou Ali" data-fest="true">Baddou Ali (00670)</option>
+        <option value="Weismeier Lisa" data-fest="true">Weismeier Lisa (00656)</option>
+        <option value="Tahiri Ramiz" data-fest="true">Tahiri Ramiz (00591)</option>
+      </optgroup>
+      <optgroup label="Aushilfe (Minijob)">
+        <option value="Kyrychenko Anton" data-fest="false">Kyrychenko Anton</option>
+        <option value="Zafi Leonora" data-fest="false">Zafi Leonora</option>
+        <option value="Zahitov Andrii" data-fest="false">Zahitov Andrii (00634)</option>
+        <option value="Wittmann Marlene" data-fest="false">Wittmann Marlene</option>
+        <option value="Rost Jessy" data-fest="false">Rost Jessy (00581)</option>
+        <option value="Mulakhil Mahibullah" data-fest="false">Mulakhil Mahibullah</option>
+        <option value="Martini Laura" data-fest="false">Martini Laura</option>
+        <option value="Llazi Luka" data-fest="false">Llazi Luka (00647)</option>
+        <option value="Hagos Jonas Zerhin" data-fest="false">Hagos Jonas Zerhin</option>
+        <option value="Ehiwogwu Evans" data-fest="false">Ehiwogwu Evans (00027)</option>
+        <option value="Dhillon Singh" data-fest="false">Dhillon Singh (00668)</option>
+        <option value="Pukaliuk Tetjana" data-fest="false">Pukaliuk Tetjana (00653)</option>
+        <option value="Köbele Matthias" data-fest="false">Köbele Matthias (00666)</option>
+      </optgroup>
     </select>
+
+    <!-- Чекбокс Schank отображается только для Festangestellte -->
+    <div class="schank-box" id="schankContainer">
+      <input type="checkbox" id="schankCheckbox">
+      <span>Heute an der Bar / Schank (S)</span>
+    </div>
 
     <div class="btn-group">
       <button class="btn-in" onclick="sendStamp('kommen')">Kommen</button>
@@ -90,9 +136,19 @@
   <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxOJxviLIIfidTsMS8zzbZYa9rwH4th19HOooerig0CtOwgcB32QGfD6_aOiRKs7677dA/exec";
 
+    function toggleSchankOption() {
+      const select = document.getElementById("employee");
+      const selectedOption = select.options[select.selectedIndex];
+      const isFest = selectedOption.getAttribute("data-fest") === "true";
+      const schankBox = document.getElementById("schankContainer");
+      schankBox.style.display = isFest ? "flex" : "none";
+      if (!isFest) document.getElementById("schankCheckbox").checked = false;
+    }
+
     async function sendStamp(actionType) {
       const select = document.getElementById("employee");
       const name = select.value;
+      const isSchank = document.getElementById("schankCheckbox").checked;
       const statusDiv = document.getElementById("status");
       const buttons = document.querySelectorAll("button");
 
@@ -103,7 +159,8 @@
 
       const payload = {
         name: name,
-        action: actionType
+        action: actionType,
+        isSchank: isSchank
       };
 
       try {
@@ -116,7 +173,8 @@
 
         if (result.status === "success") {
           statusDiv.className = "success";
-          statusDiv.innerText = `Erfolgreich! ${result.name} - ${actionType.toUpperCase()} um ${result.time} Uhr eingetragen.`;
+          const schankText = result.schank ? " [Schank: S]" : "";
+          statusDiv.innerText = `Erfolgreich! ${result.name} - ${actionType.toUpperCase()} um ${result.time} Uhr eingetragen.${schankText}`;
         } else {
           statusDiv.className = "error";
           statusDiv.innerText = "Fehler: " + result.message;
