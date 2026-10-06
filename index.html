@@ -275,9 +275,11 @@
       modal.style.display = "flex";
 
       try {
-        const response = await fetch(WEB_APP_URL, {
-          method: "POST",
-          body: JSON.stringify({ name: name, action: "getHistory" })
+        // Быстрый GET-запрос со следованием за редиректом Google
+        const fetchUrl = `${WEB_APP_URL}?action=getHistory&name=${encodeURIComponent(name)}`;
+        const response = await fetch(fetchUrl, {
+          method: "GET",
+          redirect: "follow"
         });
         const result = await response.json();
 
