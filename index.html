@@ -52,7 +52,7 @@
     }
     .schank-box input { width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer; }
     .schank-box span { font-size: 0.9rem; color: #f1f5f9; }
-    .btn-group { display: flex; gap: 12px; }
+    .btn-group { display: flex; gap: 12px; margin-bottom: 12px; }
     button {
       flex: 1;
       padding: 16px 8px;
@@ -66,6 +66,7 @@
     button:active { transform: scale(0.97); }
     .btn-in { background-color: #22c55e; color: #022c22; }
     .btn-out { background-color: #ef4444; color: #450a0a; }
+    .btn-history { width: 100%; background-color: #334155; color: #f8fafc; font-size: 0.95rem; padding: 13px; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
     #status {
       margin-top: 20px;
@@ -73,9 +74,43 @@
       border-radius: 10px;
       font-size: 0.9rem;
       display: none;
+      line-height: 1.4;
+      text-align: left;
     }
     .success { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid #22c55e; }
     .error { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid #ef4444; }
+
+    /* Всплывающее окно личного табеля (Stundenzettel) */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+    .modal-content {
+      background: #1e293b;
+      color: #f8fafc;
+      width: 100%;
+      max-width: 400px;
+      max-height: 85vh;
+      border-radius: 16px;
+      padding: 20px;
+      overflow-y: auto;
+      text-align: left;
+      border: 1px solid #334155;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .modal-header { font-size: 1.1rem; font-weight: bold; margin-bottom: 12px; color: #f8fafc; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 10px; }
+    th { background: #0f172a; padding: 8px 6px; text-align: left; border-bottom: 1px solid #334155; color: #94a3b8; }
+    td { padding: 8px 6px; border-bottom: 1px solid #334155; color: #f1f5f9; }
+    .tfoot-row td { font-weight: bold; background: #0f172a; color: #38bdf8; border-top: 2px solid #38bdf8; }
+    .btn-close { width: 100%; margin-top: 16px; background: #334155; color: #f8fafc; padding: 12px; }
   </style>
 </head>
 <body>
@@ -105,7 +140,7 @@
       <optgroup label="Aushilfe (Minijob)">
         <option value="Kyrychenko Anton" data-fest="false">Kyrychenko Anton</option>
         <option value="Zafi Leonora" data-fest="false">Zafi Leonora</option>
-        <option value="Zahitov Andrii" data-fest="false">Zagitov Andrey</option>
+        <option value="Zahitov Andrii" data-fest="false">Zahitov Andrii</option>
         <option value="Wittmann Marlene" data-fest="false">Wittmann Marlene</option>
         <option value="Rost Jessy" data-fest="false">Rost Jessy</option>
         <option value="Mulakhil Mahibullah" data-fest="false">Mulakhil Mahibullah</option>
@@ -122,7 +157,7 @@
     <!-- Чекбокс Schank отображается только для Festangestellte -->
     <div class="schank-box" id="schankContainer">
       <input type="checkbox" id="schankCheckbox">
-      <span>Heute an der Bar / Schank (S)</span>
+      <label for="schankCheckbox" style="margin-bottom:0; cursor:pointer;">Heute an der Bar / Schank (S)</label>
     </div>
 
     <div class="btn-group">
@@ -130,7 +165,38 @@
       <button class="btn-out" onclick="sendStamp('gehen')">Gehen</button>
     </div>
 
+    <button type="button" class="btn-history" onclick="fetchHistory()">📋 Meine Arbeitszeiten</button>
+
     <div id="status"></div>
+  </div>
+
+  <!-- Модальное окно личного табеля (Stundenzettel) -->
+  <div id="historyModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header" id="modalTitle">Stundenzettel</div>
+      <div id="modalLoading" style="text-align:center; padding: 20px; color: #94a3b8;">Lade Einträge...</div>
+      
+      <table id="historyTable" style="display:none;">
+        <thead>
+          <tr>
+            <th>Tag</th>
+            <th>Von</th>
+            <th>Bis</th>
+            <th>Pause</th>
+            <th>Std</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+        <tfoot>
+          <tr class="tfoot-row">
+            <td colspan="4">Gesamt im Monat:</td>
+            <td id="modalTotalHours">0 Std.</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <button type="button" class="btn-close" onclick="closeModal()">Schließen</button>
+    </div>
   </div>
 
   <script>
@@ -173,8 +239,12 @@
 
         if (result.status === "success") {
           statusDiv.className = "success";
-          const schankText = result.schank ? " [Schank: S]" : "";
-          statusDiv.innerText = `Erfolgreich! ${result.name} - ${actionType.toUpperCase()} um ${result.time} Uhr eingetragen.${schankText}`;
+          if (actionType === "kommen") {
+            const schankText = isSchank ? " [Schank: S]" : "";
+            statusDiv.innerHTML = `<strong>Erfolgreich eingestempelt!</strong><br>${result.name}<br>Uhrzeit: ${result.time} Uhr${schankText}`;
+          } else {
+            statusDiv.innerHTML = `<strong>Schicht beendet!</strong><br>${result.name}<br>Uhrzeit: <strong>${result.time} Uhr</strong><br>Heute gearbeitet: <strong>${result.todayHours} Std.</strong> (Pause: ${result.todayPause * 60} Min)<br>Gesamt im Monat: <strong>${result.totalMonthHours} Std.</strong>`;
+          }
         } else {
           statusDiv.className = "error";
           statusDiv.innerText = "Fehler: " + result.message;
@@ -186,6 +256,66 @@
         buttons.forEach(b => b.disabled = false);
       }
     }
+
+    async function fetchHistory() {
+      const select = document.getElementById("employee");
+      const name = select.value;
+
+      const modal = document.getElementById("historyModal");
+      const loading = document.getElementById("modalLoading");
+      const table = document.getElementById("historyTable");
+      const tbody = document.getElementById("historyBody");
+      const title = document.getElementById("modalTitle");
+      const totalEl = document.getElementById("modalTotalHours");
+
+      title.textContent = "Stundenzettel: " + name;
+      loading.style.display = "block";
+      table.style.display = "none";
+      tbody.innerHTML = "";
+      modal.style.display = "flex";
+
+      try {
+        const response = await fetch(WEB_APP_URL, {
+          method: "POST",
+          body: JSON.stringify({ name: name, action: "getHistory" })
+        });
+        const result = await response.json();
+
+        loading.style.display = "none";
+        if (result.status === "success") {
+          table.style.display = "table";
+          totalEl.textContent = result.totalMonthHours + " Std.";
+
+          if (!result.history || result.history.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#94a3b8;">Noch keine Schichten erfasst.</td></tr>';
+          } else {
+            result.history.forEach(row => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = 
+                `<td>${row.day}</td>` +
+                `<td>${row.von}</td>` +
+                `<td>${row.bis}</td>` +
+                `<td>${row.pause ? row.pause + " h" : "-"}</td>` +
+                `<td><strong>${row.std}</strong></td>`;
+              tbody.appendChild(tr);
+            });
+          }
+        } else {
+          alert("Fehler: " + result.message);
+          modal.style.display = "none";
+        }
+      } catch (err) {
+        loading.style.display = "none";
+        alert("Verbindungsfehler beim Laden der Stunden.");
+        modal.style.display = "none";
+      }
+    }
+
+    function closeModal() {
+      document.getElementById("historyModal").style.display = "none";
+    }
+
+    toggleSchankOption();
   </script>
 </body>
 </html>
