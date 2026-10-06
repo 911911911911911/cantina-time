@@ -275,12 +275,8 @@
       modal.style.display = "flex";
 
       try {
-        // Быстрый GET-запрос со следованием за редиректом Google
         const fetchUrl = `${WEB_APP_URL}?action=getHistory&name=${encodeURIComponent(name)}`;
-        const response = await fetch(fetchUrl, {
-          method: "GET",
-          redirect: "follow"
-        });
+        const response = await fetch(fetchUrl);
         const result = await response.json();
 
         loading.style.display = "none";
@@ -307,8 +303,9 @@
           modal.style.display = "none";
         }
       } catch (err) {
+        console.error("Fetch error details:", err);
         loading.style.display = "none";
-        alert("Verbindungsfehler beim Laden der Stunden.");
+        alert("Verbindungsfehler beim Laden der Stunden: " + err.message);
         modal.style.display = "none";
       }
     }
