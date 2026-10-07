@@ -5,197 +5,376 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Cantina Zeiterfassung</title>
   <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --subtext: #94a3b8;
+      --border: #334155;
+      --green: #22c55e;
+      --green-hover: #16a34a;
+      --red: #ef4444;
+      --red-hover: #dc2626;
+      --blue: #3b82f6;
+      --blue-hover: #2563eb;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
     body {
-      background-color: #0f172a;
-      color: #f8fafc;
+      background-color: var(--bg);
+      color: var(--text);
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      margin: 0;
-      padding: 16px;
+      padding: 15px;
     }
-    .card {
-      background-color: #1e293b;
-      border-radius: 20px;
+
+    .container {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
       padding: 24px;
       width: 100%;
-      max-width: 400px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-      text-align: center;
-    }
-    h1 { font-size: 1.4rem; margin-bottom: 4px; }
-    p.subtitle { color: #94a3b8; font-size: 0.85rem; margin-top: 0; margin-bottom: 20px; }
-    label { display: block; text-align: left; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 6px; }
-    select {
-      width: 100%;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #334155;
-      background-color: #0f172a;
-      color: #fff;
-      font-size: 0.95rem;
-      margin-bottom: 16px;
-      outline: none;
-    }
-    .schank-box {
+      max-width: 440px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
       display: flex;
-      align-items: center;
-      gap: 10px;
-      background: #0f172a;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #334155;
-      margin-bottom: 20px;
-      text-align: left;
+      flex-direction: column;
+      gap: 16px;
     }
-    .schank-box input { width: 18px; height: 18px; accent-color: #f59e0b; cursor: pointer; }
-    .schank-box span { font-size: 0.9rem; color: #f1f5f9; }
-    .btn-group { display: flex; gap: 12px; margin-bottom: 12px; }
+
+    h1 {
+      font-size: 1.4rem;
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--subtext);
+      text-align: center;
+      margin-top: -10px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--subtext);
+    }
+
+    select, input[type="password"] {
+      width: 100%;
+      background-color: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus, input[type="password"]:focus {
+      border-color: var(--blue);
+    }
+
+    input[type="password"] {
+      letter-spacing: 4px;
+      text-align: center;
+      font-size: 1.2rem;
+    }
+
+    .checkbox-container {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background-color: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+
+    .checkbox-container label {
+      color: #93c5fd;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
     button {
-      flex: 1;
-      padding: 16px 8px;
       border: none;
-      border-radius: 12px;
+      border-radius: 10px;
+      padding: 14px 10px;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      touch-action: manipulation;
     }
-    button:active { transform: scale(0.97); }
-    .btn-in { background-color: #22c55e; color: #022c22; }
-    .btn-out { background-color: #ef4444; color: #450a0a; }
-    .btn-history { width: 100%; background-color: #334155; color: #f8fafc; font-size: 0.95rem; padding: 13px; }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
-    #status {
-      margin-top: 20px;
-      padding: 12px;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      display: none;
-      line-height: 1.4;
-      text-align: left;
-    }
-    .success { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid #22c55e; }
-    .error { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid #ef4444; }
 
-    /* Всплывающее окно личного табеля (Stundenzettel) */
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-green {
+      background-color: var(--green);
+    }
+    .btn-green:hover:not(:disabled) {
+      background-color: var(--green-hover);
+    }
+
+    .btn-red {
+      background-color: var(--red);
+    }
+    .btn-red:hover:not(:disabled) {
+      background-color: var(--red-hover);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 100%;
+      margin-top: 4px;
+      padding: 12px;
+    }
+    .btn-outline:hover:not(:disabled) {
+      background-color: rgba(255, 255, 255, 0.05);
+      border-color: var(--subtext);
+    }
+
+    #statusMessage {
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .status-success {
+      background-color: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .status-error {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    /* Модальное окно табеля */
     .modal-overlay {
       display: none;
       position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(4px);
-      z-index: 1000;
       justify-content: center;
       align-items: center;
-      padding: 16px;
+      padding: 15px;
+      z-index: 100;
     }
-    .modal-content {
-      background: #1e293b;
-      color: #f8fafc;
-      width: 100%;
-      max-width: 400px;
-      max-height: 85vh;
+
+    .modal-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 20px;
-      overflow-y: auto;
-      text-align: left;
-      border: 1px solid #334155;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      width: 100%;
+      max-width: 480px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
     }
-    .modal-header { font-size: 1.1rem; font-weight: bold; margin-bottom: 12px; color: #f8fafc; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 10px; }
-    th { background: #0f172a; padding: 8px 6px; text-align: left; border-bottom: 1px solid #334155; color: #94a3b8; }
-    td { padding: 8px 6px; border-bottom: 1px solid #334155; color: #f1f5f9; }
-    .tfoot-row td { font-weight: bold; background: #0f172a; color: #38bdf8; border-top: 2px solid #38bdf8; }
-    .btn-close { width: 100%; margin-top: 16px; background: #334155; color: #f8fafc; padding: 12px; }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h2 {
+      font-size: 1.15rem;
+    }
+
+    .modal-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+
+    .history-table th {
+      color: var(--subtext);
+      font-weight: 600;
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-table td {
+      padding: 10px 4px;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+    }
+
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.4);
+      border-radius: 0 0 16px 16px;
+    }
+
+    .total-badge {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #38bdf8;
+    }
+
+    .btn-close {
+      background: var(--border);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
 
-  <div class="card">
+  <div class="container">
     <h1>Cantina Zeiterfassung</h1>
-    <p class="subtitle">Arbeitszeit erfassen</p>
+    <div class="subtitle">Pasinger Fabrik</div>
 
-    <label for="employee">Mitarbeiter auswählen:</label>
-    <select id="employee" onchange="toggleSchankOption()">
-      <optgroup label="Festangestellte">
-        <option value="Bassemir Sandra" data-fest="true">Bassemir Sandra</option>
-        <option value="Carababas Anna" data-fest="true">Carababas Anna</option>
-        <option value="Dhillon Kashmir Kaur" data-fest="true">Dhillon Kashmir Kaur</option>
-        <option value="Gorcheva Vesela" data-fest="true">Gorcheva Vesela</option>
-        <option value="Erhabor Friday" data-fest="true">Erhabor Friday</option>
-        <option value="Maksimovic Marko" data-fest="true">Maksimovic Marko</option>
-        <option value="Oluru Collins" data-fest="true">Oluru Collins</option>
-        <option value="Lulic Annamarija" data-fest="true">Lulic Anamarija</option>
-        <option value="Quilola Amelina" data-fest="true">Quilola Amelina</option>
-        <option value="Podskarby Yvonna" data-fest="true">Podskarby Iwona</option>
-        <option value="Novic Svitlana" data-fest="true">Novic Svitlana</option>
-        <option value="Baddou Ali" data-fest="true">Baddou Ali</option>
-        <option value="Weismeier Lisa" data-fest="true">Weismeier Lisa</option>
-        <option value="Tahiri Ramiz" data-fest="true">Tahiri Ramiz</option>
-      </optgroup>
-      <optgroup label="Aushilfe (Minijob)">
-        <option value="Kyrychenko Anton" data-fest="false">Kyrychenko Anton</option>
-        <option value="Zafi Leonora" data-fest="false">Zafi Leonora</option>
-        <option value="Zahitov Andrii" data-fest="false">Zagitov Andrey</option>
-        <option value="Wittmann Marlene" data-fest="false">Wittmann Marlene</option>
-        <option value="Rost Jessy" data-fest="false">Rost Jessy</option>
-        <option value="Mulakhil Mahibullah" data-fest="false">Mulakhil Mahibullah</option>
-        <option value="Martini Laura" data-fest="false">Martini Laura</option>
-        <option value="Llazi Luka" data-fest="false">Llazi Luka</option>
-        <option value="Hagos Jonas Zerhin" data-fest="false">Hagos Jonas Zerhin</option>
-        <option value="Ehiwogwu Evans" data-fest="false">Ehiwogwu Evans</option>
-        <option value="Dhillon Singh" data-fest="false">Dhillon Singh</option>
-        <option value="Pukaliuk Tetjana" data-fest="false">Pukaliuk Tetjana</option>
-        <option value="Köbele Matthias" data-fest="false">Köbele Matthias</option>
-      </optgroup>
-    </select>
-
-    <!-- Чекбокс Schank отображается только для Festangestellte -->
-    <div class="schank-box" id="schankContainer">
-      <input type="checkbox" id="schankCheckbox">
-      <label for="schankCheckbox" style="margin-bottom:0; cursor:pointer;">Heute an der Bar / Schank (S)</label>
+    <div class="field-group">
+      <label for="employee">Mitarbeiter auswählen:</label>
+      <select id="employee" onchange="toggleSchankOption()">
+        <optgroup label="Festangestellte">
+          <option value="Bassemir Sandra" data-fest="true">Bassemir Sandra</option>
+          <option value="Carababas Anna" data-fest="true">Carababas Anna</option>
+          <option value="Dhillon Kashmir Kaur" data-fest="true">Dhillon Kashmir Kaur</option>
+          <option value="Gorcheva Vesela" data-fest="true">Gorcheva Vesela</option>
+          <option value="Erhabor Friday" data-fest="true">Erhabor Friday</option>
+          <option value="Maksimovic Marko" data-fest="true">Maksimovic Marko</option>
+          <option value="Oluru Collins" data-fest="true">Oluru Collins</option>
+          <option value="Lulic Annamarija" data-fest="true">Lulic Anamarija</option>
+          <option value="Quilola Amelina" data-fest="true">Quilola Amelina</option>
+          <option value="Podskarby Yvonna" data-fest="true">Podskarby Iwona</option>
+          <option value="Novic Svitlana" data-fest="true">Novic Svitlana</option>
+          <option value="Baddou Ali" data-fest="true">Baddou Ali</option>
+          <option value="Weismeier Lisa" data-fest="true">Weismeier Lisa</option>
+          <option value="Tahiri Ramiz" data-fest="true">Tahiri Ramiz</option>
+        </optgroup>
+        <optgroup label="Aushilfe (Minijob)">
+          <option value="Kyrychenko Anton" data-fest="false">Kyrychenko Anton</option>
+          <option value="Zafi Leonora" data-fest="false">Zafi Leonora</option>
+          <option value="Zahitov Andrii" data-fest="false">Andrey Zagitov</option>
+          <option value="Wittmann Marlene" data-fest="false">Wittmann Marlene</option>
+          <option value="Rost Jessy" data-fest="false">Rost Jessy</option>
+          <option value="Mulakhil Mahibullah" data-fest="false">Mulakhil Mahibullah</option>
+          <option value="Martini Laura" data-fest="false">Martini Laura</option>
+          <option value="Llazi Luka" data-fest="false">Llazi Luka</option>
+          <option value="Hagos Jonas Zerhin" data-fest="false">Hagos Jonas Zerhin</option>
+          <option value="Ehiwogwu Evans" data-fest="false">Ehiwogwu Evans</option>
+          <option value="Dhillon Singh" data-fest="false">Dhillon Singh</option>
+          <option value="Pukaliuk Tetjana" data-fest="false">Pukaliuk Tetjana</option>
+          <option value="Köbele Matthias" data-fest="false">Köbele Matthias</option>
+        </optgroup>
+      </select>
     </div>
 
-    <div class="btn-group">
-      <button class="btn-in" onclick="sendStamp('kommen')">Kommen</button>
-      <button class="btn-out" onclick="sendStamp('gehen')">Gehen</button>
+    <!-- Поле ввода PIN-кода -->
+    <div class="field-group">
+      <label for="pin">Persönliche 4-stellige PIN:</label>
+      <input type="password" id="pin" placeholder="••••" maxlength="4" inputmode="numeric" autocomplete="off">
     </div>
 
-    <button type="button" class="btn-history" onclick="fetchHistory()">📋 Meine Arbeitszeiten</button>
+    <div class="checkbox-container" id="schankContainer">
+      <input type="checkbox" id="schankOption">
+      <label for="schankOption">Schankdienst (S)</label>
+    </div>
 
-    <div id="status"></div>
+    <div class="actions">
+      <button class="btn-green" id="btnKommen" onclick="sendStamp('kommen')">
+        🟢 Kommen
+      </button>
+      <button class="btn-red" id="btnGehen" onclick="sendStamp('gehen')">
+        🔴 Gehen
+      </button>
+    </div>
+
+    <button class="btn-outline" id="btnHistory" onclick="fetchHistory()">
+      📋 Meine Arbeitszeiten
+    </button>
+
+    <div id="statusMessage"></div>
   </div>
 
-  <!-- Модальное окно личного табеля (Stundenzettel) -->
-  <div id="historyModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="modal-header" id="modalTitle">Stundenzettel</div>
-      <div id="modalLoading" style="text-align:center; padding: 20px; color: #94a3b8;">Lade Einträge...</div>
-      
-      <table id="historyTable" style="display:none;">
-        <thead>
-          <tr>
-            <th>Tag</th>
-            <th>Von</th>
-            <th>Bis</th>
-            <th>Pause</th>
-            <th>Std</th>
-          </tr>
-        </thead>
-        <tbody id="historyBody"></tbody>
-        <tfoot>
-          <tr class="tfoot-row">
-            <td colspan="4">Gesamt im Monat:</td>
-            <td id="modalTotalHours">0 Std.</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <button type="button" class="btn-close" onclick="closeModal()">Schließen</button>
+  <!-- Окно табеля -->
+  <div class="modal-overlay" id="historyModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modalTitle">Stundenzettel</h2>
+        <button class="btn-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="modalLoading" style="text-align: center; color: var(--subtext); padding: 20px;">Laden...</div>
+        <table class="history-table" id="historyTable" style="display: none;">
+          <thead>
+            <tr>
+              <th>Tag</th>
+              <th>Von</th>
+              <th>Bis</th>
+              <th>Pause</th>
+              <th>Std.</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <div class="total-badge">Gesamt Monat: <span id="modalTotalHours">0</span></div>
+        <button class="btn-close" onclick="closeModal()">Schließen</button>
+      </div>
     </div>
   </div>
 
@@ -204,62 +383,84 @@
 
     function toggleSchankOption() {
       const select = document.getElementById("employee");
-      const selectedOption = select.options[select.selectedIndex];
-      const isFest = selectedOption.getAttribute("data-fest") === "true";
-      const schankBox = document.getElementById("schankContainer");
-      schankBox.style.display = isFest ? "flex" : "none";
-      if (!isFest) document.getElementById("schankCheckbox").checked = false;
+      const selected = select.options[select.selectedIndex];
+      const isFest = selected.getAttribute("data-fest") === "true";
+      document.getElementById("schankContainer").style.display = isFest ? "flex" : "none";
+      if (!isFest) document.getElementById("schankOption").checked = false;
     }
 
-    async function sendStamp(actionType) {
+    function setButtonsDisabled(disabled) {
+      document.getElementById("btnKommen").disabled = disabled;
+      document.getElementById("btnGehen").disabled = disabled;
+      document.getElementById("btnHistory").disabled = disabled;
+    }
+
+    function showStatus(text, isError) {
+      const el = document.getElementById("statusMessage");
+      el.textContent = text;
+      el.className = isError ? "status-error" : "status-success";
+      el.style.display = "block";
+    }
+
+    async function sendStamp(action) {
       const select = document.getElementById("employee");
       const name = select.value;
-      const isSchank = document.getElementById("schankCheckbox").checked;
-      const statusDiv = document.getElementById("status");
-      const buttons = document.querySelectorAll("button");
+      const displayName = select.options[select.selectedIndex].text;
+      const pinInput = document.getElementById("pin");
+      const pin = pinInput.value.trim();
+      const isSchank = document.getElementById("schankOption").checked;
 
-      buttons.forEach(b => b.disabled = true);
-      statusDiv.style.display = "block";
-      statusDiv.className = "";
-      statusDiv.innerText = "Wird gesendet...";
+      if (!pin || pin.length < 4) {
+        showStatus("Bitte gib deine 4-stellige PIN ein!", true);
+        pinInput.focus();
+        return;
+      }
 
-      const payload = {
-        name: name,
-        action: actionType,
-        isSchank: isSchank
-      };
+      setButtonsDisabled(true);
+      showStatus("Wird gespeichert...", false);
 
       try {
         const response = await fetch(WEB_APP_URL, {
           method: "POST",
-          body: JSON.stringify(payload)
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ name, pin, action, isSchank })
         });
 
-        const result = await response.json();
+        const res = await response.json();
+        setButtonsDisabled(false);
 
-        if (result.status === "success") {
-          statusDiv.className = "success";
-          if (actionType === "kommen") {
-            const schankText = isSchank ? " [Schank: S]" : "";
-            statusDiv.innerHTML = `<strong>Erfolgreich eingestempelt!</strong><br>${result.name}<br>Uhrzeit: ${result.time} Uhr${schankText}`;
+        if (res.status === "success") {
+          pinInput.value = ""; // Очищаем PIN после успешной отметки
+          if (action === "kommen") {
+            showStatus(`✅ Hallo ${displayName}! Gekommen um ${res.time} Uhr erfasst.`, false);
           } else {
-            statusDiv.innerHTML = `<strong>Schicht beendet!</strong><br>${result.name}<br>Uhrzeit: <strong>${result.time} Uhr</strong><br>Heute gearbeitet: <strong>${result.todayHours} Std.</strong> (Pause: ${result.todayPause * 60} Min)<br>Gesamt im Monat: <strong>${result.totalMonthHours} Std.</strong>`;
+            showStatus(`✅ Feierabend ${displayName}! Gegangen um ${res.time} Uhr. Heute: ${res.todayHours} Std. (Pause: ${res.todayPause}h). Monat: ${res.totalMonthHours} Std.`, false);
           }
+        } else if (res.status === "auth_failed") {
+          showStatus("❌ Falsche PIN! Zugriff verweigert.", true);
+          pinInput.value = "";
+          pinInput.focus();
         } else {
-          statusDiv.className = "error";
-          statusDiv.innerText = "Fehler: " + result.message;
+          showStatus("❌ Fehler: " + res.message, true);
         }
       } catch (err) {
-        statusDiv.className = "error";
-        statusDiv.innerText = "Verbindungsfehler oder Anfrage blockiert.";
-      } finally {
-        buttons.forEach(b => b.disabled = false);
+        setButtonsDisabled(false);
+        showStatus("❌ Verbindungsfehler zum Server.", true);
       }
     }
 
     async function fetchHistory() {
       const select = document.getElementById("employee");
       const name = select.value;
+      const displayName = select.options[select.selectedIndex].text;
+      const pinInput = document.getElementById("pin");
+      const pin = pinInput.value.trim();
+
+      if (!pin || pin.length < 4) {
+        showStatus("Bitte PIN eingeben, um deine Stunden zu sehen!", true);
+        pinInput.focus();
+        return;
+      }
 
       const modal = document.getElementById("historyModal");
       const loading = document.getElementById("modalLoading");
@@ -268,14 +469,14 @@
       const title = document.getElementById("modalTitle");
       const totalEl = document.getElementById("modalTotalHours");
 
-      title.textContent = "Stundenzettel: " + name;
+      title.textContent = "Stundenzettel: " + displayName;
       loading.style.display = "block";
       table.style.display = "none";
       tbody.innerHTML = "";
       modal.style.display = "flex";
 
       try {
-        const fetchUrl = `${WEB_APP_URL}?action=getHistory&name=${encodeURIComponent(name)}`;
+        const fetchUrl = `${WEB_APP_URL}?action=getHistory&name=${encodeURIComponent(name)}&pin=${encodeURIComponent(pin)}`;
         const response = await fetch(fetchUrl);
         const result = await response.json();
 
@@ -298,15 +499,18 @@
               tbody.appendChild(tr);
             });
           }
-        } else {
-          alert("Fehler: " + result.message);
+        } else if (result.status === "auth_failed") {
           modal.style.display = "none";
+          showStatus("❌ Falsche PIN! Zugriff verweigert.", true);
+          pinInput.value = "";
+          pinInput.focus();
+        } else {
+          modal.style.display = "none";
+          showStatus("❌ Fehler: " + result.message, true);
         }
       } catch (err) {
-        console.error("Fetch error details:", err);
-        loading.style.display = "none";
-        alert("Verbindungsfehler beim Laden der Stunden: " + err.message);
         modal.style.display = "none";
+        showStatus("❌ Verbindungsfehler beim Laden der Stunden.", true);
       }
     }
 
