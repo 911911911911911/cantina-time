@@ -7,526 +7,393 @@
   <style>
     :root {
       --bg: #0f172a;
-      --card-bg: #1e293b;
+      --card: #1e293b;
+      --card-2: #263449;
       --text: #f8fafc;
-      --subtext: #94a3b8;
+      --sub: #94a3b8;
       --border: #334155;
       --green: #22c55e;
-      --green-hover: #16a34a;
+      --green-h: #16a34a;
       --red: #ef4444;
-      --red-hover: #dc2626;
+      --red-h: #dc2626;
       --blue: #3b82f6;
-      --blue-hover: #2563eb;
+      --blue-h: #2563eb;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    html, body { height: 100%; }
     body {
-      background-color: var(--bg);
+      background: radial-gradient(1200px 600px at 50% -10%, #1b2a4a 0%, var(--bg) 60%);
       color: var(--text);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 15px;
+      display: flex; justify-content: center; align-items: center;
+      padding: 16px; user-select: none; -webkit-user-select: none; overscroll-behavior: none;
     }
+    .card {
+      width: 100%; max-width: 520px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 22px;
+      padding: clamp(18px, 4vw, 32px);
+      box-shadow: 0 20px 40px -10px rgba(0,0,0,.5);
+      display: flex; flex-direction: column; gap: clamp(12px, 2.2vh, 20px);
+    }
+    [hidden] { display: none !important; }
+    h1 { font-size: clamp(1.3rem, 3.4vw, 1.7rem); text-align: center; letter-spacing: -.4px; }
+    .subtitle { text-align: center; color: var(--sub); font-size: .9rem; margin-top: -8px; }
 
-    .container {
-      background-color: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      width: 100%;
-      max-width: 440px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+    /* PIN */
+    .dots { display: flex; justify-content: center; gap: 16px; padding: 6px 0; }
+    .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--sub); transition: all .12s; }
+    .dot.on { background: var(--blue); border-color: var(--blue); transform: scale(1.1); }
+    .pin-msg { min-height: 1.4em; text-align: center; font-size: .95rem; color: #f87171; }
+    .pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(8px, 1.8vw, 14px); }
+    .key {
+      background: var(--card-2); border: 1px solid var(--border); color: var(--text);
+      border-radius: 16px; font-size: clamp(1.5rem, 4.5vw, 2rem); font-weight: 600;
+      height: clamp(58px, 10vh, 84px); cursor: pointer; touch-action: manipulation;
+      transition: transform .06s, background .15s;
     }
+    .key:active { transform: scale(.96); background: #324562; }
+    .key.fn { font-size: 1.3rem; color: var(--sub); background: transparent; }
 
-    h1 {
-      font-size: 1.4rem;
-      text-align: center;
-      font-weight: 700;
-      letter-spacing: -0.5px;
+    /* Buttons */
+    .btn {
+      border: none; border-radius: 16px; color: #fff; font-weight: 700; cursor: pointer;
+      font-size: clamp(1.1rem, 3.2vw, 1.35rem); padding: clamp(16px, 3vh, 24px) 12px;
+      touch-action: manipulation; transition: transform .06s, background .15s, opacity .15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
     }
+    .btn:active:not(:disabled) { transform: scale(.98); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn.blue { background: var(--blue); } .btn.blue:hover:not(:disabled) { background: var(--blue-h); }
+    .btn.green { background: var(--green); } .btn.green:hover:not(:disabled) { background: var(--green-h); }
+    .btn.red { background: var(--red); } .btn.red:hover:not(:disabled) { background: var(--red-h); }
+    .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: 600; font-size: 1.05rem; padding: 14px; }
+    .btn.link { background: transparent; color: var(--sub); font-weight: 500; font-size: .95rem; padding: 10px; }
 
-    .subtitle {
-      font-size: 0.85rem;
-      color: var(--subtext);
-      text-align: center;
-      margin-top: -10px;
+    /* Menü */
+    .hello { text-align: center; font-size: clamp(1.5rem, 4.6vw, 2.1rem); font-weight: 700; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .schank {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.3);
+      border-radius: 14px; padding: 14px; color: #93c5fd; font-weight: 600; font-size: 1.05rem; cursor: pointer;
     }
+    .schank input { width: 26px; height: 26px; accent-color: var(--blue); }
 
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+    /* Ergebnis */
+    .result { text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; padding: 8px 0; }
+    .result .icon { font-size: 3.6rem; line-height: 1; }
+    .result .title { font-size: clamp(1.4rem, 4vw, 1.9rem); font-weight: 700; }
+    .result .detail { color: var(--sub); font-size: 1.05rem; line-height: 1.5; }
+    .result.ok .title { color: #4ade80; } .result.err .title { color: #f87171; }
+    .bar { width: 100%; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; width: 100%; background: var(--blue); transform-origin: left; }
+    .bar.run > i { animation: shrink 5s linear forwards; }
+    @keyframes shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
-    label {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--subtext);
-    }
-
-    select, input[type="password"] {
-      width: 100%;
-      background-color: var(--bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 14px;
-      font-size: 1rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    select:focus, input[type="password"]:focus {
-      border-color: var(--blue);
-    }
-
-    input[type="password"] {
-      letter-spacing: 4px;
-      text-align: center;
-      font-size: 1.2rem;
-    }
-
-    .checkbox-container {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      background-color: rgba(59, 130, 246, 0.1);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      padding: 10px 12px;
-      border-radius: 8px;
-    }
-
-    .checkbox-container label {
-      color: #93c5fd;
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 4px;
-    }
-
-    button {
-      border: none;
-      border-radius: 10px;
-      padding: 14px 10px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      touch-action: manipulation;
-    }
-
-    button:active {
-      transform: scale(0.98);
-    }
-
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .btn-green {
-      background-color: var(--green);
-    }
-    .btn-green:hover:not(:disabled) {
-      background-color: var(--green-hover);
-    }
-
-    .btn-red {
-      background-color: var(--red);
-    }
-    .btn-red:hover:not(:disabled) {
-      background-color: var(--red-hover);
-    }
-
-    .btn-outline {
-      background-color: transparent;
-      border: 1px solid var(--border);
-      color: var(--text);
-      width: 100%;
-      margin-top: 4px;
-      padding: 12px;
-    }
-    .btn-outline:hover:not(:disabled) {
-      background-color: rgba(255, 255, 255, 0.05);
-      border-color: var(--subtext);
-    }
-
-    #statusMessage {
-      font-size: 0.85rem;
-      text-align: center;
-      padding: 10px;
-      border-radius: 8px;
-      display: none;
-    }
-
-    .status-success {
-      background-color: rgba(34, 197, 94, 0.15);
-      color: #4ade80;
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-
-    .status-error {
-      background-color: rgba(239, 68, 68, 0.15);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-
-    /* Модальное окно табеля */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(4px);
-      justify-content: center;
-      align-items: center;
-      padding: 15px;
-      z-index: 100;
-    }
-
-    .modal-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      width: 100%;
-      max-width: 480px;
-      max-height: 85vh;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-header h2 {
-      font-size: 1.15rem;
-    }
-
-    .modal-body {
-      padding: 16px 20px;
-      overflow-y: auto;
-      flex: 1;
-    }
-
-    .history-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-      text-align: left;
-    }
-
-    .history-table th {
-      color: var(--subtext);
-      font-weight: 600;
-      padding: 8px 4px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .history-table td {
-      padding: 10px 4px;
-      border-bottom: 1px solid rgba(51, 65, 85, 0.5);
-    }
-
-    .modal-footer {
-      padding: 14px 20px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(15, 23, 42, 0.4);
-      border-radius: 0 0 16px 16px;
-    }
-
-    .total-badge {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #38bdf8;
-    }
-
-    .btn-close {
-      background: var(--border);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-    }
+    /* Verlauf */
+    .hist-wrap { max-height: 52vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 1rem; }
+    th { position: sticky; top: 0; background: var(--card-2); color: var(--sub); text-align: left; padding: 10px 8px; font-weight: 600; }
+    td { padding: 11px 8px; border-top: 1px solid rgba(51,65,85,.6); }
+    .total { text-align: center; color: #38bdf8; font-weight: 700; font-size: 1.1rem; }
+    .empty { text-align: center; color: var(--sub); padding: 18px; }
+    .spinner { text-align: center; color: var(--sub); padding: 18px; }
   </style>
 </head>
 <body>
 
-  <div class="container">
+  <!-- 1) PIN-Eingabe -->
+  <main class="card" id="screenPin">
     <h1>Cantina Zeiterfassung</h1>
-    <div class="subtitle">Pasinger Fabrik</div>
-
-    <div class="field-group">
-      <label for="employee">Mitarbeiter auswählen:</label>
-      <select id="employee" onchange="toggleSchankOption()">
-        <optgroup label="Festangestellte">
-          <option value="Bassemir Sandra" data-fest="true">Bassemir Sandra</option>
-          <option value="Carababas Anna" data-fest="true">Carababas Anna</option>
-          <option value="Dhillon Kashmir Kaur" data-fest="true">Dhillon Kashmir Kaur</option>
-          <option value="Gorcheva Vesela" data-fest="true">Gorcheva Vesela</option>
-          <option value="Erhabor Friday" data-fest="true">Erhabor Friday</option>
-          <option value="Maksimovic Marko" data-fest="true">Maksimovic Marko</option>
-          <option value="Oluru Collins" data-fest="true">Oluru Collins</option>
-          <option value="Lulic Annamarija" data-fest="true">Lulic Annamarija</option>
-          <option value="Quilola Amelina" data-fest="true">Quilola Amelina</option>
-          <option value="Podskarby Iwona" data-fest="true">Podskarby Iwona</option>
-          <option value="Novik Svitlana" data-fest="true">Novik Svitlana</option>
-          <option value="Baddou Ali" data-fest="true">Baddou Ali</option>
-          <option value="Weismeier Lisa" data-fest="true">Weismeier Lisa</option>
-          <option value="Tahiri Ramiz" data-fest="true">Tahiri Ramiz</option>
-          <option value="Matthias" data-fest="true">Matthias</option>
-          <option value="Boro" data-fest="true">Boro</option>
-          <option value="Oleh" data-fest="true">Oleh</option>
-        </optgroup>
-        <optgroup label="Aushilfe (Minijob)">
-          <option value="Kyrychenko Anton" data-fest="false">Kyrychenko Anton</option>
-          <option value="Zefi Leonora" data-fest="false">Zefi Leonora</option>
-          <option value="Zahitov Andrii" data-fest="false">Andrey Zagitov</option>
-          <option value="Wittmann Marlene" data-fest="false">Wittmann Marlene</option>
-          <option value="Rost Jessy" data-fest="false">Rost Jessy</option>
-          <option value="Mulakhil Mahibullah" data-fest="false">Mulakhil Mahibullah</option>
-          <option value="Martini Laura" data-fest="false">Martini Laura</option>
-          <option value="Llazi Luka" data-fest="false">Llazi Luka</option>
-          <option value="Hagos Jonas Zerhin" data-fest="false">Hagos Jonas Zerhin</option>
-          <option value="Ehiwogwu Evans" data-fest="false">Ehiwogwu Evans</option>
-          <option value="Dhillon Singh" data-fest="false">Dhillon Singh</option>
-          <option value="Pukaliuk Tetjana" data-fest="false">Pukaliuk Tetjana</option>
-          <option value="Köbele Matthias" data-fest="false">Köbele Matthias</option>
-        </optgroup>
-        <optgroup label="Gäste / Probearbeit">
-          <option value="Gast 1 (Probetag)" data-fest="false">Gast 1 (Probetag)</option>
-          <option value="Gast 2 (Probetag)" data-fest="false">Gast 2 (Probetag)</option>
-          <option value="Gast 3 (Springer)" data-fest="false">Gast 3 (Springer)</option>
-        </optgroup>
-      </select>
+    <div class="subtitle">Pasinger Fabrik · PIN eingeben</div>
+    <div class="dots" id="dots" aria-label="PIN-Eingabe">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
     </div>
-
-    <!-- Поле ввода PIN-кода -->
-    <div class="field-group">
-      <label for="pin">Persönliche 4-stellige PIN:</label>
-      <input type="password" id="pin" placeholder="••••" maxlength="4" inputmode="numeric" autocomplete="off">
+    <div class="pin-msg" id="pinMsg" role="alert"></div>
+    <div class="pad" id="pad">
+      <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+      <button class="key fn" data-k="clear" aria-label="Löschen">C</button>
+      <button class="key" data-k="0">0</button>
+      <button class="key fn" data-k="back" aria-label="Zurück">⌫</button>
     </div>
+    <button class="btn blue" id="btnNext" disabled>Weiter</button>
+  </main>
 
-    <div class="checkbox-container" id="schankContainer">
-      <input type="checkbox" id="schankOption">
-      <label for="schankOption">Schankdienst (S)</label>
+  <!-- 2) Menü -->
+  <main class="card" id="screenMenu" hidden>
+    <div class="hello" id="hello">Hallo!</div>
+    <label class="schank" id="schankBox" hidden>
+      <input type="checkbox" id="schankOpt"> Schankdienst (S)
+    </label>
+    <div class="row2">
+      <button class="btn green" id="btnKommen">🟢 Kommen</button>
+      <button class="btn red" id="btnGehen">🔴 Gehen</button>
     </div>
+    <button class="btn ghost" id="btnHistory">📋 Meine Arbeitszeiten</button>
+    <button class="btn link" id="btnCancel">Abbrechen</button>
+  </main>
 
-    <div class="actions">
-      <button class="btn-green" id="btnKommen" onclick="sendStamp('kommen')">
-        🟢 Kommen
-      </button>
-      <button class="btn-red" id="btnGehen" onclick="sendStamp('gehen')">
-        🔴 Gehen
-      </button>
+  <!-- 3) Ergebnis -->
+  <main class="card" id="screenResult" hidden>
+    <div class="result" id="resultBox">
+      <div class="icon" id="resIcon"></div>
+      <div class="title" id="resTitle"></div>
+      <div class="detail" id="resDetail"></div>
     </div>
+    <div class="bar" id="bar"><i></i></div>
+    <button class="btn link" id="btnNow">Sofort zurück</button>
+  </main>
 
-    <button class="btn-outline" id="btnHistory" onclick="fetchHistory()">
-      📋 Meine Arbeitszeiten
-    </button>
-
-    <div id="statusMessage"></div>
-  </div>
-
-  <!-- Окно табеля -->
-  <div class="modal-overlay" id="historyModal">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h2 id="modalTitle">Stundenzettel</h2>
-        <button class="btn-close" onclick="closeModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="modalLoading" style="text-align: center; color: var(--subtext); padding: 20px;">Laden...</div>
-        <table class="history-table" id="historyTable" style="display: none;">
-          <thead>
-            <tr>
-              <th>Tag</th>
-              <th>Von</th>
-              <th>Bis</th>
-              <th>Pause</th>
-              <th>Std.</th>
-            </tr>
-          </thead>
-          <tbody id="historyBody"></tbody>
-        </table>
-      </div>
-      <div class="modal-footer">
-        <div class="total-badge">Gesamt Monat: <span id="modalTotalHours">0</span></div>
-        <button class="btn-close" onclick="closeModal()">Schließen</button>
-      </div>
+  <!-- 4) Verlauf -->
+  <main class="card" id="screenHistory" hidden>
+    <h1 id="histTitle">Meine Arbeitszeiten</h1>
+    <div id="histLoading" class="spinner">Laden …</div>
+    <div class="hist-wrap" id="histWrap" hidden>
+      <table>
+        <thead><tr><th>Tag</th><th>Von</th><th>Bis</th><th>Pause</th><th>Std.</th></tr></thead>
+        <tbody id="histBody"></tbody>
+      </table>
     </div>
-  </div>
+    <div class="total" id="histTotal" hidden></div>
+    <button class="btn ghost" id="btnHistBack">Zurück</button>
+    <button class="btn link" id="btnHistDone">Fertig</button>
+  </main>
 
-  <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxOJxviLIIfidTsMS8zzbZYa9rwH4th19HOooerig0CtOwgcB32QGfD6_aOiRKs7677dA/exec";
+<script>
+  // URL der Apps-Script-Web-App (bei "Bereitstellungen verwalten -> Neue Version" bleibt sie gleich)
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxOJxviLIIfidTsMS8zzbZYa9rwH4th19HOooerig0CtOwgcB32QGfD6_aOiRKs7677dA/exec";
+  const RESET_SECONDS = 5;   // Rücksprung nach Erfolg/Fehler
+  const IDLE_SECONDS = 45;   // Rücksprung bei Inaktivität im Menü/Verlauf
+  const TIMEOUT_MS = 20000;
 
-    function toggleSchankOption() {
-      const select = document.getElementById("employee");
-      const selected = select.options[select.selectedIndex];
-      const isFest = selected.getAttribute("data-fest") === "true";
-      document.getElementById("schankContainer").style.display = isFest ? "flex" : "none";
-      if (!isFest) document.getElementById("schankOption").checked = false;
+  const $ = (id) => document.getElementById(id);
+  const screens = ["screenPin", "screenMenu", "screenResult", "screenHistory"];
+
+  let pin = "";
+  let session = null;      // { pin, name, displayName, canSchank }
+  let busy = false;
+  let resetTimer = null;
+  let idleTimer = null;
+
+  // ---------- Hilfsfunktionen ----------
+  function show(id) {
+    screens.forEach((s) => { $(s).hidden = (s !== id); });
+  }
+
+  function fmt(n) {
+    const v = Number(n);
+    return isNaN(v) ? String(n) : v.toFixed(2).replace(".", ",");
+  }
+
+  async function api(payload) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
+      });
+      return await res.json();
+    } finally {
+      clearTimeout(t);
     }
+  }
 
-    function setButtonsDisabled(disabled) {
-      document.getElementById("btnKommen").disabled = disabled;
-      document.getElementById("btnGehen").disabled = disabled;
-      document.getElementById("btnHistory").disabled = disabled;
-    }
+  function armIdle() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(resetToPin, IDLE_SECONDS * 1000);
+  }
 
-    function showStatus(text, isError) {
-      const el = document.getElementById("statusMessage");
-      el.textContent = text;
-      el.className = isError ? "status-error" : "status-success";
-      el.style.display = "block";
-    }
+  // ---------- PIN-Screen ----------
+  function renderDots() {
+    document.querySelectorAll("#dots .dot").forEach((d, i) => d.classList.toggle("on", i < pin.length));
+    $("btnNext").disabled = busy || pin.length < 4;
+  }
 
-    async function sendStamp(action) {
-      const select = document.getElementById("employee");
-      const name = select.value;
-      const displayName = select.options[select.selectedIndex].text;
-      const pinInput = document.getElementById("pin");
-      const pin = pinInput.value.trim();
-      const isSchank = document.getElementById("schankOption").checked;
+  function pressKey(k) {
+    if (busy) return;
+    $("pinMsg").textContent = "";
+    if (k === "back") pin = pin.slice(0, -1);
+    else if (k === "clear") pin = "";
+    else if (/^\d$/.test(k) && pin.length < 4) pin += k;
+    renderDots();
+  }
 
-      if (!pin || pin.length < 4) {
-        showStatus("Bitte gib deine 4-stellige PIN ein!", true);
-        pinInput.focus();
-        return;
+  async function submitPin() {
+    if (busy || pin.length < 4) return;
+    busy = true; renderDots();
+    $("pinMsg").style.color = "#94a3b8";
+    $("pinMsg").textContent = "Prüfe PIN …";
+    try {
+      const res = await api({ action: "verifyPin", pin });
+      if (res.status === "success") {
+        session = { pin, name: res.name, displayName: res.displayName || res.name, canSchank: !!res.canSchank };
+        pin = "";
+        openMenu();
+      } else {
+        $("pinMsg").style.color = "#f87171";
+        $("pinMsg").textContent = res.message || "Fehler";
+        pin = "";
       }
+    } catch (e) {
+      $("pinMsg").style.color = "#f87171";
+      $("pinMsg").textContent = "Verbindungsfehler zum Server.";
+      pin = "";
+    }
+    busy = false; renderDots();
+  }
 
-      setButtonsDisabled(true);
-      showStatus("Wird gespeichert...", false);
+  // ---------- Menü ----------
+  function openMenu() {
+    $("hello").textContent = "Hallo, " + session.displayName + "!";
+    $("schankBox").hidden = !session.canSchank;
+    $("schankOpt").checked = false;
+    setMenuDisabled(false);
+    show("screenMenu");
+    armIdle();
+  }
 
-      try {
-        const response = await fetch(WEB_APP_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ name, pin, action, isSchank })
-        });
+  function setMenuDisabled(d) {
+    ["btnKommen", "btnGehen", "btnHistory", "btnCancel"].forEach((id) => { $(id).disabled = d; });
+  }
 
-        const res = await response.json();
-        setButtonsDisabled(false);
-
-        if (res.status === "success") {
-          pinInput.value = "";
-          if (action === "kommen") {
-            showStatus(`✅ Hallo ${displayName}! Gekommen um ${res.time} Uhr erfasst.`, false);
-          } else {
-            showStatus(`✅ Feierabend ${displayName}! Gegangen um ${res.time} Uhr. Heute: ${res.todayHours} Std. (Pause: ${res.todayPause}h). Monat: ${res.totalMonthHours} Std.`, false);
-          }
-        } else if (res.status === "auth_failed") {
-          showStatus("❌ Falsche PIN! Zugriff verweigert.", true);
-          pinInput.value = "";
-          pinInput.focus();
+  async function stamp(action) {
+    if (busy || !session) return;
+    busy = true; setMenuDisabled(true);
+    clearTimeout(idleTimer);
+    try {
+      const res = await api({ action, pin: session.pin, isSchank: $("schankOpt").checked });
+      if (res.status === "success") {
+        if (action === "kommen") {
+          showResult(true, "Willkommen, " + session.displayName + "!", "Gekommen um " + res.time + " Uhr erfasst.");
         } else {
-          showStatus("❌ Fehler: " + res.message, true);
+          showResult(true, "Feierabend, " + session.displayName + "!",
+            "Gegangen um " + res.time + " Uhr.\nHeute: " + fmt(res.todayHours) + " Std. (Pause: " + fmt(res.todayPause) + " h)\nMonat gesamt: " + fmt(res.totalMonthHours) + " Std.");
         }
-      } catch (err) {
-        setButtonsDisabled(false);
-        showStatus("❌ Verbindungsfehler zum Server.", true);
+      } else {
+        showResult(false, "Nicht gespeichert", res.message || "Unbekannter Fehler");
       }
+    } catch (e) {
+      showResult(false, "Verbindungsfehler", "Bitte erneut versuchen.");
     }
+    busy = false;
+  }
 
-    async function fetchHistory() {
-      const select = document.getElementById("employee");
-      const name = select.value;
-      const displayName = select.options[select.selectedIndex].text;
-      const pinInput = document.getElementById("pin");
-      const pin = pinInput.value.trim();
+  // ---------- Ergebnis ----------
+  function showResult(ok, title, detail) {
+    $("resultBox").className = "result " + (ok ? "ok" : "err");
+    $("resIcon").textContent = ok ? "✅" : "❌";
+    $("resTitle").textContent = title;
+    $("resDetail").textContent = detail;
+    $("resDetail").style.whiteSpace = "pre-line";
+    show("screenResult");
 
-      if (!pin || pin.length < 4) {
-        showStatus("Bitte PIN eingeben, um deine Stunden zu sehen!", true);
-        pinInput.focus();
-        return;
-      }
+    const bar = $("bar");
+    bar.classList.remove("run"); void bar.offsetWidth; bar.classList.add("run");
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(resetToPin, RESET_SECONDS * 1000);
+  }
 
-      const modal = document.getElementById("historyModal");
-      const loading = document.getElementById("modalLoading");
-      const table = document.getElementById("historyTable");
-      const tbody = document.getElementById("historyBody");
-      const title = document.getElementById("modalTitle");
-      const totalEl = document.getElementById("modalTotalHours");
+  // ---------- Verlauf ----------
+  async function openHistory() {
+    if (busy || !session) return;
+    busy = true;
+    $("histTitle").textContent = "Arbeitszeiten: " + session.displayName;
+    $("histLoading").hidden = false;
+    $("histWrap").hidden = true;
+    $("histTotal").hidden = true;
+    $("histBody").replaceChildren();
+    show("screenHistory");
+    armIdle();
 
-      title.textContent = "Stundenzettel: " + displayName;
-      loading.style.display = "block";
-      table.style.display = "none";
-      tbody.innerHTML = "";
-      modal.style.display = "flex";
-
-      try {
-        const fetchUrl = `${WEB_APP_URL}?action=getHistory&name=${encodeURIComponent(name)}&pin=${encodeURIComponent(pin)}`;
-        const response = await fetch(fetchUrl);
-        const result = await response.json();
-
-        loading.style.display = "none";
-        if (result.status === "success") {
-          table.style.display = "table";
-          totalEl.textContent = result.totalMonthHours + " Std.";
-
-          if (!result.history || result.history.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:15px; color:#94a3b8;">Noch keine Schichten erfasst.</td></tr>';
-          } else {
-            result.history.forEach(row => {
-              const tr = document.createElement("tr");
-              tr.innerHTML = 
-                `<td>${row.day}</td>` +
-                `<td>${row.von}</td>` +
-                `<td>${row.bis}</td>` +
-                `<td>${row.pause ? row.pause + " h" : "-"}</td>` +
-                `<td><strong>${row.std}</strong></td>`;
-              tbody.appendChild(tr);
+    try {
+      const res = await api({ action: "getHistory", pin: session.pin });
+      $("histLoading").hidden = true;
+      if (res.status !== "success") {
+        $("histLoading").hidden = false;
+        $("histLoading").textContent = res.message || "Fehler beim Laden.";
+      } else {
+        const body = $("histBody");
+        if (!res.history || res.history.length === 0) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 5; td.className = "empty"; td.textContent = "Noch keine Schichten erfasst.";
+          tr.appendChild(td); body.appendChild(tr);
+        } else {
+          res.history.forEach((r) => {
+            const tr = document.createElement("tr");
+            [r.day, r.von || "–", r.bis || "–", r.pause !== "" && r.pause !== 0 ? fmt(r.pause) + " h" : "–", r.std !== "" ? fmt(r.std) : "–"].forEach((v, i) => {
+              const td = document.createElement("td");
+              td.textContent = v;
+              if (i === 4) td.style.fontWeight = "700";
+              tr.appendChild(td);
             });
-          }
-        } else if (result.status === "auth_failed") {
-          modal.style.display = "none";
-          showStatus("❌ Falsche PIN! Zugriff verweigert.", true);
-          pinInput.value = "";
-          pinInput.focus();
-        } else {
-          modal.style.display = "none";
-          showStatus("❌ Fehler: " + result.message, true);
+            body.appendChild(tr);
+          });
         }
-      } catch (err) {
-        modal.style.display = "none";
-        showStatus("❌ Verbindungsfehler beim Laden der Stunden.", true);
+        $("histWrap").hidden = false;
+        $("histTotal").textContent = "Gesamt Monat: " + fmt(res.totalMonthHours) + " Std.";
+        $("histTotal").hidden = false;
       }
+    } catch (e) {
+      $("histLoading").hidden = false;
+      $("histLoading").textContent = "Verbindungsfehler beim Laden.";
     }
+    busy = false;
+  }
 
-    function closeModal() {
-      document.getElementById("historyModal").style.display = "none";
-    }
+  // ---------- Zurücksetzen ----------
+  function resetToPin() {
+    clearTimeout(resetTimer);
+    clearTimeout(idleTimer);
+    session = null; pin = ""; busy = false;
+    $("pinMsg").textContent = "";
+    $("schankOpt").checked = false;
+    $("histBody").replaceChildren();
+    renderDots();
+    show("screenPin");
+  }
 
-    toggleSchankOption();
-  </script>
+  // ---------- Events ----------
+  $("pad").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-k]");
+    if (b) pressKey(b.dataset.k);
+  });
+  $("btnNext").addEventListener("click", submitPin);
+  $("btnKommen").addEventListener("click", () => stamp("kommen"));
+  $("btnGehen").addEventListener("click", () => stamp("gehen"));
+  $("btnHistory").addEventListener("click", openHistory);
+  $("btnCancel").addEventListener("click", resetToPin);
+  $("btnNow").addEventListener("click", resetToPin);
+  $("btnHistBack").addEventListener("click", () => { if (session) openMenu(); else resetToPin(); });
+  $("btnHistDone").addEventListener("click", resetToPin);
+
+  // Aktivität verlängert die Inaktivitäts-Frist (Menü + Verlauf)
+  document.addEventListener("pointerdown", () => {
+    if (!$("screenMenu").hidden || !$("screenHistory").hidden) armIdle();
+  });
+
+  // Hardware-Tastatur (falls vorhanden)
+  document.addEventListener("keydown", (e) => {
+    if ($("screenPin").hidden) return;
+    if (/^\d$/.test(e.key)) pressKey(e.key);
+    else if (e.key === "Backspace") pressKey("back");
+    else if (e.key === "Escape") pressKey("clear");
+    else if (e.key === "Enter") submitPin();
+  });
+
+  // Doppeltipp-Zoom verhindern
+  let lastTouch = 0;
+  document.addEventListener("touchend", (e) => {
+    const now = Date.now();
+    if (now - lastTouch < 350) e.preventDefault();
+    lastTouch = now;
+  }, { passive: false });
+
+  resetToPin();
+</script>
 </body>
 </html>
