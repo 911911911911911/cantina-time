@@ -97,6 +97,9 @@
     .total { text-align: center; color: #38bdf8; font-weight: 700; font-size: 1.1rem; }
     .empty { text-align: center; color: var(--sub); padding: 18px; }
     .spinner { text-align: center; color: var(--sub); padding: 18px; }
+
+    /* Hinweise (gesicherte / abgelehnte Buchungen, Offline-Modus) */
+    .notice { background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.4); color: #fcd34d; border-radius: 14px; padding: 10px 14px; font-size: .92rem; line-height: 1.45; text-align: center; display: flex; flex-direction: column; gap: 4px; align-items: center; }
   </style>
 </head>
 <body>
@@ -105,6 +108,7 @@
   <main class="card" id="screenPin">
     <h1>Cantina Zeiterfassung</h1>
     <div class="subtitle">Pasinger Fabrik · PIN eingeben</div>
+    <div class="notice" id="banner" hidden></div>
     <div class="dots" id="dots" aria-label="PIN-Eingabe">
       <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
     </div>
@@ -123,6 +127,7 @@
   <!-- 2) Menü -->
   <main class="card" id="screenMenu" hidden>
     <div class="hello" id="hello">Hallo!</div>
+    <div class="notice" id="offlineNote" hidden>Keine Verbindung – deine Buchung wird gesichert und automatisch übertragen.</div>
     <label class="schank" id="schankBox" hidden>
       <input type="checkbox" id="schankOpt"> Schankdienst (S)
     </label>
@@ -163,18 +168,59 @@
 <script>
   // URL der Apps-Script-Web-App (bei "Bereitstellungen verwalten -> Neue Version" bleibt sie gleich)
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxOJxviLIIfidTsMS8zzbZYa9rwH4th19HOooerig0CtOwgcB32QGfD6_aOiRKs7677dA/exec";
-  const RESET_SECONDS = 5;   // Rücksprung nach Erfolg/Fehler
-  const IDLE_SECONDS = 45;   // Rücksprung bei Inaktivität im Menü/Verlauf
-  const TIMEOUT_MS = 20000;
+  const RESET_SECONDS = 5;            // Rücksprung nach Erfolg/Fehler
+  const IDLE_SECONDS = 45;            // Rücksprung bei Inaktivität im Menü/Verlauf
+  const FG_TIMEOUT_MS = 12000;        // Vordergrund: Wartezeit pro Versuch
+  const FG_ATTEMPTS = 2;              // Vordergrund: Versuche; danach wird die Buchung gesichert und später übertragen
+  const BG_TIMEOUT_MS = 20000;        // Hintergrund-Übertragung: Wartezeit pro Versuch
+  const RETRY_DELAY_MS = 1500;
+  const SYNC_INTERVAL_MS = 30000;     // so oft wird eine gesicherte Buchung erneut übertragen
+  const MAX_SERVER_RETRIES = 20;      // so oft darf der Server "bitte wiederholen" melden, bevor die Buchung als Problem gemeldet wird
+  const KEEPALIVE_MS = 4 * 60 * 1000; // hält die Web-App warm (weniger Kaltstart-Verzögerung)
+  const LS = { queue: "cz_queue_v1", rejected: "cz_rejected_v1", pins: "cz_pins_v1", offset: "cz_offset_v1" };
 
   const $ = (id) => document.getElementById(id);
   const screens = ["screenPin", "screenMenu", "screenResult", "screenHistory"];
 
   let pin = "";
-  let session = null;      // { pin, name, displayName, canSchank }
+  let session = null;      // { pin, name, displayName, canSchank, offline }
   let busy = false;
   let resetTimer = null;
   let idleTimer = null;
+
+  // ---------- Lokaler Speicher (überlebt Neuladen und Verbindungsausfall) ----------
+  function lsGet(key, fallback) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+  }
+  function lsSet(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e) { return false; }
+  }
+
+  let queue = lsGet(LS.queue, []);        // gesicherte, noch nicht bestätigte Buchungen (älteste zuerst)
+  let rejected = lsGet(LS.rejected, []);  // Buchungen, die der Server endgültig abgelehnt hat
+  let clockOffset = Number(lsGet(LS.offset, 0)) || 0; // Serveruhr minus Geräteuhr
+  const outcomes = {};                    // Ergebnis je Buchungs-ID (für die Anzeige am Terminal)
+
+  function saveQueue() { lsSet(LS.queue, queue); renderBanner(); }
+  function saveRejected() { lsSet(LS.rejected, rejected); renderBanner(); }
+  function enqueue(e) { queue.push(e); saveQueue(); }
+  function dequeue(id) { queue = queue.filter((x) => x.id !== id); saveQueue(); }
+
+  function correctedNow() { return Date.now() + clockOffset; }
+  function noteServerTime(serverNow, t0, t1) {
+    if (typeof serverNow === "number" && isFinite(serverNow)) {
+      clockOffset = Math.round(serverNow - (t0 + t1) / 2);
+      lsSet(LS.offset, clockOffset);
+    }
+  }
+
+  // PIN -> Name der zuletzt erfolgreich geprüften PINs: damit funktioniert die Anmeldung auch ohne Verbindung
+  function rememberPin(p, res) {
+    const m = lsGet(LS.pins, {});
+    m[p] = { d: res.displayName || res.name, s: !!res.canSchank };
+    lsSet(LS.pins, m);
+  }
+  function knownPin(p) { return lsGet(LS.pins, {})[p] || null; }
 
   // ---------- Hilfsfunktionen ----------
   function show(id) {
@@ -186,20 +232,126 @@
     return isNaN(v) ? String(n) : v.toFixed(2).replace(".", ",");
   }
 
-  async function api(payload) {
+  function timeText(ms) { return new Date(ms).toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" }); }
+  function dayText(ms) { return new Date(ms).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit" }); }
+
+  function newRequestId() {
+    try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) { /* ignorieren */ }
+    return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
+  }
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Ein Versuch. Wirft bei Netzwerkfehler, Zeitüberschreitung, HTTP-Fehler oder unlesbarer Antwort
+  // (z. B. HTML-Fehlerseite von Google statt JSON).
+  async function apiOnce(payload, timeoutMs) {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
+      const t0 = Date.now();
       const res = await fetch(WEB_APP_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
         signal: ctrl.signal
       });
-      return await res.json();
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = JSON.parse(await res.text());
+      if (data && typeof data === "object") noteServerTime(data.serverNow, t0, Date.now());
+      return data;
     } finally {
       clearTimeout(t);
     }
+  }
+
+  // Mit automatischer Wiederholung. Jeder Versuch trägt dieselbe requestId: Hat der Server die Buchung
+  // schon gespeichert, liefert er beim Wiederholen die gespeicherte Antwort statt doppelt zu buchen.
+  async function api(payload, opts) {
+    const o = Object.assign({ attempts: FG_ATTEMPTS, timeout: FG_TIMEOUT_MS, onRetry: null }, opts || {});
+    const body = Object.assign({ requestId: newRequestId() }, payload);
+    let lastErr = new Error("Keine Antwort");
+    for (let attempt = 1; attempt <= o.attempts; attempt++) {
+      try {
+        const res = await apiOnce(body, o.timeout);
+        // retry:true = Server war nur ausgelastet (nichts gespeichert) -> nochmal versuchen
+        if (!(res && res.retry === true && attempt < o.attempts)) return res;
+        lastErr = new Error("Server ausgelastet");
+      } catch (e) {
+        lastErr = e;
+      }
+      if (attempt < o.attempts) {
+        if (o.onRetry) o.onRetry(attempt + 1);
+        await sleep(RETRY_DELAY_MS);
+      }
+    }
+    throw lastErr;
+  }
+
+  function netErrorText() {
+    return navigator.onLine === false ? "Kein Internet. Bitte WLAN prüfen." : "Der Server antwortet nicht.";
+  }
+
+  // ---------- Warteschlange: nichts geht verloren ----------
+  // Jede Buchung wird zuerst auf dem Gerät gesichert und dann gesendet. Klappt das nicht, bleibt sie in der
+  // Warteschlange und wird automatisch übertragen (mit der echten Stempelzeit), sobald die Verbindung wieder da ist.
+  let chain = Promise.resolve();
+  function flushQueue(opts) {
+    const p = chain.then(() => flushOnce(opts || {}));
+    chain = p.catch(() => {});
+    return p;
+  }
+
+  async function flushOnce(opts) {
+    const o = opts.foreground
+      ? { attempts: FG_ATTEMPTS, timeout: FG_TIMEOUT_MS, onRetry: opts.onRetry }
+      : { attempts: 1, timeout: BG_TIMEOUT_MS };
+    while (queue.length) {
+      const e = queue[0];
+      let res;
+      try {
+        res = await api({ action: e.action, pin: e.pin, isSchank: e.isSchank, clientTs: e.ts, requestId: e.id }, o);
+      } catch (err) {
+        return { offline: true };           // Netz/Server nicht erreichbar: Buchung bleibt gesichert
+      }
+      if (res && res.locked === true) return { offline: true };   // Terminal vorübergehend gesperrt
+      if (res && res.retry === true) {                            // Server meldet "bitte später nochmal"
+        e.tries = (e.tries || 0) + 1;
+        if (e.tries < MAX_SERVER_RETRIES) { saveQueue(); return { offline: true }; }
+        res = { status: "error", message: "Server meldet dauerhaft einen Fehler." };
+      }
+      dequeue(e.id);
+      if (res && res.status === "success") {
+        outcomes[e.id] = { ok: true, res };
+      } else {
+        const msg = (res && res.message) || "Unbekannter Fehler";
+        outcomes[e.id] = { ok: false, res: res || { message: msg } };
+        if (e.id !== opts.focusId) {                              // nicht am Bildschirm angezeigt -> Hinweis auf dem PIN-Bildschirm
+          rejected.push({ id: e.id, action: e.action, ts: e.ts, name: e.name || "", message: msg });
+          saveRejected();
+        }
+      }
+    }
+    return { offline: false };
+  }
+
+  function renderBanner() {
+    const el = $("banner");
+    if (!el) return;
+    el.replaceChildren();
+    const lines = [];
+    if (queue.length) lines.push("🕒 " + queue.length + " Buchung(en) gesichert – werden automatisch übertragen, sobald die Verbindung da ist.");
+    rejected.forEach((r) => {
+      lines.push("⚠ " + (r.name || "?") + ": " + (r.action === "kommen" ? "Kommen" : "Gehen") + " " + dayText(r.ts) + " " + timeText(r.ts) +
+        " konnte nicht übernommen werden (" + r.message + "). Bitte Chef informieren.");
+    });
+    lines.forEach((t) => { const d = document.createElement("div"); d.textContent = t; el.appendChild(d); });
+    if (rejected.length) {
+      const b = document.createElement("button");
+      b.className = "btn link"; b.textContent = "Gelesen";
+      b.addEventListener("click", () => { rejected = []; saveRejected(); });
+      el.appendChild(b);
+    }
+    el.hidden = lines.length === 0;
   }
 
   function armIdle() {
@@ -228,9 +380,12 @@
     $("pinMsg").style.color = "#94a3b8";
     $("pinMsg").textContent = "Prüfe PIN …";
     try {
-      const res = await api({ action: "verifyPin", pin });
+      const res = await api({ action: "verifyPin", pin }, {
+        onRetry: (n) => { $("pinMsg").textContent = "Verbindung wird erneut versucht … (" + n + "/" + FG_ATTEMPTS + ")"; }
+      });
       if (res.status === "success") {
-        session = { pin, name: res.name, displayName: res.displayName || res.name, canSchank: !!res.canSchank };
+        rememberPin(pin, res);
+        session = { pin, name: res.name, displayName: res.displayName || res.name, canSchank: !!res.canSchank, offline: false };
         pin = "";
         openMenu();
       } else {
@@ -239,9 +394,17 @@
         pin = "";
       }
     } catch (e) {
-      $("pinMsg").style.color = "#f87171";
-      $("pinMsg").textContent = "Verbindungsfehler zum Server.";
-      pin = "";
+      const k = knownPin(pin);
+      if (k) {
+        // Keine Verbindung, aber die PIN wurde auf diesem Gerät schon einmal geprüft: Buchen ist trotzdem möglich
+        session = { pin, name: k.d, displayName: k.d, canSchank: k.s, offline: true };
+        pin = "";
+        openMenu();
+      } else {
+        // PIN bleibt stehen: einfach noch einmal auf "Weiter" tippen
+        $("pinMsg").style.color = "#f87171";
+        $("pinMsg").textContent = netErrorText() + " Deine PIN kann gerade nicht geprüft werden – bitte gleich erneut auf „Weiter“ tippen.";
+      }
     }
     busy = false; renderDots();
   }
@@ -251,6 +414,7 @@
     $("hello").textContent = "Hallo, " + session.displayName + "!";
     $("schankBox").hidden = !session.canSchank;
     $("schankOpt").checked = false;
+    $("offlineNote").hidden = !session.offline;
     setMenuDisabled(false);
     show("screenMenu");
     armIdle();
@@ -264,40 +428,63 @@
     if (busy || !session) return;
     busy = true; setMenuDisabled(true);
     clearTimeout(idleTimer);
+
+    // Zuerst sichern – ab jetzt kann die Buchung nicht mehr verloren gehen. Die Zeit ist die des Tastendrucks.
+    const entry = { id: newRequestId(), action, pin: session.pin, isSchank: $("schankOpt").checked, ts: correctedNow(), name: session.displayName };
+    enqueue(entry);
+    $("hello").textContent = "Speichere …";
     try {
-      const res = await api({ action, pin: session.pin, isSchank: $("schankOpt").checked });
-      if (res.status === "success") {
-        if (action === "kommen") {
-          showResult(true, "Willkommen, " + session.displayName + "!", "Gekommen um " + res.time + " Uhr erfasst.");
-        } else {
-          showResult(true, "Feierabend, " + session.displayName + "!",
-            "Gegangen um " + res.time + " Uhr.\nHeute: " + fmt(res.todayHours) + " Std. (Pause: " + fmt(res.todayPause) + " h)\nMonat gesamt: " + fmt(res.totalMonthHours) + " Std.");
-        }
+      await flushQueue({
+        focusId: entry.id, foreground: true,
+        onRetry: (n) => { $("hello").textContent = "Verbindung wird erneut versucht … (" + n + "/" + FG_ATTEMPTS + ")"; }
+      });
+    } catch (e) { /* Buchung bleibt gesichert */ }
+
+    const out = outcomes[entry.id];
+    delete outcomes[entry.id];
+    if (out && out.ok) {
+      const res = out.res;
+      const late = res.replayed ? "\n(Nachträglich übertragen)" : "";
+      if (action === "kommen") {
+        showResult(true, "Willkommen, " + session.displayName + "!", "Gekommen um " + res.time + " Uhr erfasst." + late);
       } else {
-        showResult(false, "Nicht gespeichert", res.message || "Unbekannter Fehler");
+        showResult(true, "Feierabend, " + session.displayName + "!",
+          "Gegangen um " + res.time + " Uhr.\nHeute: " + fmt(res.todayHours) + " Std. (Pause: " + fmt(res.todayPause) + " h)\nMonat gesamt: " + fmt(res.totalMonthHours) + " Std." + late);
       }
-    } catch (e) {
-      showResult(false, "Verbindungsfehler", "Bitte erneut versuchen.");
+    } else if (out) {
+      rejected = rejected.filter((r) => r.id !== entry.id); saveRejected();
+      showResult(false, "Nicht gespeichert", (out.res && out.res.message) || "Unbekannter Fehler");
+    } else {
+      // Keine Verbindung: Buchung ist gesichert und wird automatisch übertragen
+      showResult(true, "Gesichert",
+        (action === "kommen" ? "Kommen" : "Gehen") + " um " + timeText(entry.ts) + " Uhr ist auf diesem Gerät gesichert.\n" +
+        "Die Verbindung ist gerade gestört – die Buchung wird automatisch übertragen, sobald sie wieder da ist. Du musst nichts weiter tun.", 10, "🕒");
     }
     busy = false;
   }
 
   // ---------- Ergebnis ----------
-  function showResult(ok, title, detail) {
+  function showResult(ok, title, detail, seconds, icon) {
+    const secs = seconds || RESET_SECONDS;
     $("resultBox").className = "result " + (ok ? "ok" : "err");
-    $("resIcon").textContent = ok ? "✅" : "❌";
+    $("resIcon").textContent = icon || (ok ? "✅" : "❌");
     $("resTitle").textContent = title;
     $("resDetail").textContent = detail;
     $("resDetail").style.whiteSpace = "pre-line";
     show("screenResult");
 
     const bar = $("bar");
-    bar.classList.remove("run"); void bar.offsetWidth; bar.classList.add("run");
+    bar.classList.remove("run"); void bar.offsetWidth;
+    bar.firstElementChild.style.animationDuration = secs + "s";
+    bar.classList.add("run");
     clearTimeout(resetTimer);
-    resetTimer = setTimeout(resetToPin, RESET_SECONDS * 1000);
+    resetTimer = setTimeout(resetToPin, secs * 1000);
   }
 
   // ---------- Verlauf ----------
+  // zwei Schichten pro Tag: "10:00 / 18:00"
+  function joinShifts(a, b) { return [a, b].filter(Boolean).join(" / ") || "–"; }
+
   async function openHistory() {
     if (busy || !session) return;
     busy = true;
@@ -310,7 +497,12 @@
     armIdle();
 
     try {
-      const res = await api({ action: "getHistory", pin: session.pin });
+      const res = await api({ action: "getHistory", pin: session.pin }, {
+        onRetry: (n) => {
+          $("histLoading").hidden = false;
+          $("histLoading").textContent = "Verbindung wird erneut versucht … (" + n + "/" + FG_ATTEMPTS + ")";
+        }
+      });
       $("histLoading").hidden = true;
       if (res.status !== "success") {
         $("histLoading").hidden = false;
@@ -325,7 +517,7 @@
         } else {
           res.history.forEach((r) => {
             const tr = document.createElement("tr");
-            [r.day, r.von || "–", r.bis || "–", r.pause !== "" && r.pause !== 0 ? fmt(r.pause) + " h" : "–", r.std !== "" ? fmt(r.std) : "–"].forEach((v, i) => {
+            [r.day, joinShifts(r.von, r.von2), joinShifts(r.bis, r.bis2), r.pause !== "" && r.pause !== 0 ? fmt(r.pause) + " h" : "–", r.std !== "" ? fmt(r.std) : "–"].forEach((v, i) => {
               const td = document.createElement("td");
               td.textContent = v;
               if (i === 4) td.style.fontWeight = "700";
@@ -340,7 +532,7 @@
       }
     } catch (e) {
       $("histLoading").hidden = false;
-      $("histLoading").textContent = "Verbindungsfehler beim Laden.";
+      $("histLoading").textContent = netErrorText() + " Bitte erneut versuchen.";
     }
     busy = false;
   }
@@ -354,6 +546,7 @@
     $("schankOpt").checked = false;
     $("histBody").replaceChildren();
     renderDots();
+    renderBanner();
     show("screenPin");
   }
 
@@ -393,7 +586,29 @@
     lastTouch = now;
   }, { passive: false });
 
+  // Gesicherte Buchungen automatisch übertragen: beim Start, bei zurückkehrender Verbindung, beim Zurückkehren
+  // in die App und alle 30 Sekunden.
+  function syncPending() { if (queue.length && !busy) flushQueue({}).catch(() => {}); }
+  window.addEventListener("online", syncPending);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { keepAlive(); syncPending(); } });
+  setInterval(syncPending, SYNC_INTERVAL_MS);
+
+  // Hält die Web-App warm (Kaltstarts nach Leerlauf sind eine häufige Ursache für Zeitüberschreitungen)
+  // und gleicht die Geräteuhr mit der Serveruhr ab.
+  function keepAlive() {
+    try {
+      const t0 = Date.now();
+      fetch(WEB_APP_URL, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((j) => noteServerTime(j && j.serverNow, t0, Date.now()))
+        .catch(() => {});
+    } catch (e) { /* ignorieren */ }
+  }
+  keepAlive();
+  setInterval(keepAlive, KEEPALIVE_MS);
+
   resetToPin();
+  syncPending();
 </script>
 </body>
 </html>
