@@ -114,7 +114,7 @@
       display: flex; align-items: center; justify-content: center;
       transition: transform .05s, box-shadow .05s;
     }
-    .key:active { transform: translateY(3px); box-shadow: 0 0 0 var(--lip); }
+    .key:active { transform: none; background: #E6EDEA; box-shadow: inset 0 3px 0 var(--lip); }
     .key.fn { background: transparent; border-color: transparent; box-shadow: none; color: var(--sub); font-size: 1rem; font-weight: 700; }
     .key.fn:active { transform: none; background: rgba(20,51,45,.08); }
     .key svg { width: 30px; height: 30px; }
@@ -750,7 +750,21 @@
   }
 
   // ---------- Events ----------
+  // Tasten reagieren sofort beim Berühren (pointerdown) statt erst nach dem "click":
+  // Bei schnellem Tippen mit mehreren Fingern bzw. überlappenden Berührungen
+  // verwirft der Browser sonst einzelne Klicks.
+  let lastPtr = 0;
+  $("pad").addEventListener("pointerdown", (e) => {
+    if (e.button > 0) return;
+    const b = e.target.closest("button[data-k]");
+    if (!b) return;
+    e.preventDefault();
+    lastPtr = Date.now();
+    pressKey(b.dataset.k);
+  });
+  // Fallback für Bedienhilfen/Tastatur, die nur "click" senden
   $("pad").addEventListener("click", (e) => {
+    if (Date.now() - lastPtr < 700) return;
     const b = e.target.closest("button[data-k]");
     if (b) pressKey(b.dataset.k);
   });
