@@ -798,6 +798,21 @@
   keepAlive();
   setInterval(keepAlive, KEEPALIVE_MS);
 
+  // Bildschirm anlassen: Die Seite bittet den Browser selbst darum (Screen Wake Lock). Funktioniert in Chrome
+  // und in Safari ab 16.4, solange die Seite sichtbar ist. Geht die Anfrage verloren (z. B. Energiesparmodus,
+  // Seite im Hintergrund), wird sie beim Zurückkehren und beim nächsten Tippen erneut gestellt.
+  let wakeLock = null;
+  async function keepAwake() {
+    try {
+      if (!("wakeLock" in navigator) || document.hidden || wakeLock) return;
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    } catch (e) { wakeLock = null; /* nicht erlaubt: Einstellungen des Geräts greifen weiter */ }
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) keepAwake(); });
+  document.addEventListener("pointerdown", keepAwake, { passive: true });
+  keepAwake();
+
   tickClock();
   setInterval(tickClock, 1000);
   renderStatus();
