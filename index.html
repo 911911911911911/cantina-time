@@ -753,6 +753,237 @@
   // Tasten reagieren sofort beim Berühren (pointerdown) statt erst nach dem "click":
   // Bei schnellem Tippen mit mehreren Fingern bzw. überlappenden Berührungen
   // verwirft der Browser sonst einzelne Klicks.
+  let lastKey = "", lastKeyAt = 0;
+  $("pad").addEventListener("pointerdown", (e) => {
+    if (e.button > 0) return;
+    const b = e.target.closest("button[data-k]");
+    if (!b) return;
+    e.preventDefault();
+    // Dieselbe Taste innerhalb von 120 ms ist ein doppeltes Signal des Touchscreens, kein zweiter Tipp.
+    const now = Date.now(), k = b.dataset.k;
+    if (k === lastKey && now - lastKeyAt < 120) return;
+    lastKey = k; lastKeyAt = now;
+    pressKey(k);
+  });
+  // Echte Mausklicks/Touch-Klicks haben detail >= 1 und wurden schon über pointerdown gezählt.
+  // Nur Tastatur/Bedienhilfen (detail = 0) laufen hier.
+  $("pad").addEventListener("click", (e) => {
+    if (e.detail !== 0) return;
+    const b = e.target.closest("button[data-k]");
+    if (b) pressKey(b.dataset.k);
+  });
+  $("btnNext").disabled = busy || pin.length < 4;
+  }
+
+  function pressKey(k) {
+    if (busy) return;
+    $("pinMsg").textContent = "";
+    if (k === "back") pin = pin.slice(0, -1);
+    else if (k === "clear") pin = "";
+    else if (/^\d$/.test(k) && pin.length < 4) pin += k;
+    renderDots();
+  }
+
+  async function submitPin() {
+    if (busy || pin.length < 4) return;
+    busy = true; renderDots();
+    $("pinMsg").className = "pin-msg info";
+    $("pinMsg").textContent = "Prüfe PIN …";
+    try {
+      const res = await api({ action: "verifyPin", pin }, {
+        onRetry: (n) => { $("pinMsg").textContent = "Verbindung wird erneut versucht … (" + n + "/" + FG_ATTEMPTS + ")"; }
+      });
+      if (res.status === "success") {
+        rememberPin(pin, res);
+        session = { pin, name: res.name, displayName: res.displayName || res.name, canSchank: !!res.canSchank, offline: false };
+        pin = "";
+        openMenu();
+      } else {
+        $("pinMsg").className = "pin-msg err";
+        $("pinMsg").textContent = res.message || "Fehler";
+        pin = "";
+        shake();
+      }
+    } catch (e) {
+      const k = knownPin(pin);
+      if (k) {
+        // Keine Verbindung, aber die PIN wurde auf diesem Gerät schon einmal geprüft: Buchen ist trotzdem möglich
+        session = { pin, name: k.d, displayName: k.d, canSchank: k.s, offline: true };
+        pin = "";
+        openMenu();
+      } else {
+        // PIN bleibt stehen: einfach noch einmal auf "Weiter" tippen
+        $("pinMsg").className = "pin-msg err";
+        $("pinMsg").textContent = netErrorText() + " Deine PIN kann gerade nicht geprüft werden – bitte gleich erneut auf „Weiter“ tippen.";
+      }
+    }
+    busy = false; renderDots();
+  }
+
+  // ---------- Menü ----------
+  function openMenu() {
+    $("hello").textContent = "Hallo, " + session.displayName + "!";
+    $("schankBox").hidden = !session.canSchank;
+    $("schankOpt").checked = false;
+    $("offlineNote").hidden = !session.offline;
+    setMenuDisabled(false);
+    show("screenMenu");
+    armIdle();
+  }
+
+  function setMenuDisabled(d) {
+    ["btnKommen", "btnGehen", "btnHistory", "btnCancel"].forEach((id) => { $(id).disabled = d; });
+  }
+
+  async function stamp(action) {
+    if (busy || !session) return;
+    busy = true; setMenuDisabled(true);
+    clearTimeout(idleTimer);
+
+    // Zuerst sichern – ab jetzt kann die Buchung nicht mehr verloren gehen. Die Zeit ist die des Tastendrucks.
+    const entry = { id: newRequestId(), action, pin: session.pin, isSchank: $("schankOpt").checked, ts: correctedNow(), name: session.displayName };
+    enqueue(entry);
+    $("hello").textContent = "Speichere …";
+    try {
+      await flushQueue({
+        focusId: entry.id, foreground: true,
+        onRetry: (n) => { $("hello").textContent = "Verbindung wird erneut versucht … (" + n + "/" + FG_ATTEMPTS + ")"; }
+      });
+    } catch (e) { /* Buchung bleibt gesichert */ }
+
+    const out = outcomes[entry.id];
+    delete outcomes[entry.id];
+    if (out && out.ok) {
+      const res = out.res;
+      const late = res.replayed ? "Nachträglich übertragen." : "";
+      if (action === "kommen") {
+        showResult(true, "Willkommen, " + session.displayName + "!", late, null, "ok", { label: "Gekommen", time: res.time, rows: [] });
+      } else {
+        showResult(true, "Feierabend, " + session.displayName + "!", late, null, "ok", {
+          label: "Gegangen", time: res.time,
+          rows: [["Heute", fmt(res.todayHours) + " Std."], ["Pause", fmt(res.todayPause) + " h"], ["Monat gesamt", fmt(res.totalMonthHours) + " Std."]]
+        });
+      }
+    } else if (out) {
+      rejected = rejected.filter((r) => r.id !== entry.id); saveRejected();
+      showResult(false, "Nicht gespeichert", (out.res && out.res.message) || "Unbekannter Fehler");
+    } else {
+      // Keine Verbindung: Buchung ist gesichert und wird automatisch übertragen
+      showResult(true, "Gesichert",
+        "Die Verbindung ist gerade gestört. Die Buchung ist auf diesem Gerät gesichert und wird automatisch übertragen, sobald sie wieder da ist. Du musst nichts weiter tun.",
+        10, "wait", { label: action === "kommen" ? "Kommen" : "Gehen", time: timeText(entry.ts), rows: [] });
+    }
+    busy = false;
+  }
+
+  // ---------- Ergebnis ----------
+  function showResult(ok, title, detail, seconds, kind, ticket) {
+    const secs = seconds || RESET_SECONDS;
+    const k = kind || (ok ? "ok" : "err");
+    $("resultBox").className = "result " + k;
+    $("resIcon").innerHTML = ICONS[k];   // nur feste Konstanten, keine Nutzereingaben
+    $("resTitle").textContent = title;
+    $("ticketWrap").hidden = !ticket;
+    if (ticket) {
+      $("tkLabel").textContent = ticket.label;
+      $("tkTime").textContent = ticket.time;
+      const rows = $("tkRows");
+      rows.replaceChildren();
+      (ticket.rows || []).forEach((r) => {
+        const d = document.createElement("div");
+        d.className = "tk-row";
+        const a = document.createElement("span"); a.textContent = r[0];
+        const b = document.createElement("b"); b.textContent = r[1];
+        d.appendChild(a); d.appendChild(b);
+        rows.appendChild(d);
+      });
+    }
+    $("resDetail").textContent = detail || "";
+    $("resDetail").hidden = !detail;
+    show("screenResult");
+
+    const bar = $("bar");
+    bar.classList.remove("run"); void bar.offsetWidth;
+    bar.firstElementChild.style.animationDuration = secs + "s";
+    bar.classList.add("run");
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(resetToPin, secs * 1000);
+  }
+
+  // ---------- Verlauf ----------
+  // zwei Schichten pro Tag: "10:00 / 18:00"
+  function joinShifts(a, b) { return [a, b].filter(Boolean).join(" / ") || "–"; }
+
+  async function openHistory() {
+    if (busy || !session) return;
+    busy = true;
+    $("histTitle").textContent = "Arbeitszeiten: " + session.displayName;
+    $("histLoading").hidden = false;
+    $("histWrap").hidden = true;
+    $("histTotal").hidden = true;
+    $("histBody").replaceChildren();
+    show("screenHistory");
+    armIdle();
+
+    try {
+      const res = await api({ action: "getHistory", pin: session.pin }, {
+        onRetry: (n) => {
+          $("histLoading").hidden = false;
+          $("histLoading").textContent = "Verbindung wird erneut versucht … (" + n + "/" + FG_ATTEMPTS + ")";
+        }
+      });
+      $("histLoading").hidden = true;
+      if (res.status !== "success") {
+        $("histLoading").hidden = false;
+        $("histLoading").textContent = res.message || "Fehler beim Laden.";
+      } else {
+        const body = $("histBody");
+        if (!res.history || res.history.length === 0) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 5; td.className = "empty"; td.textContent = "Noch keine Schichten erfasst.";
+          tr.appendChild(td); body.appendChild(tr);
+        } else {
+          res.history.forEach((r) => {
+            const tr = document.createElement("tr");
+            [r.day, joinShifts(r.von, r.von2), joinShifts(r.bis, r.bis2), r.pause !== "" && r.pause !== 0 ? fmt(r.pause) + " h" : "–", r.std !== "" ? fmt(r.std) : "–"].forEach((v, i) => {
+              const td = document.createElement("td");
+              td.textContent = v;
+              if (i === 4) td.style.fontWeight = "700";
+              tr.appendChild(td);
+            });
+            body.appendChild(tr);
+          });
+        }
+        $("histWrap").hidden = false;
+        $("histTotal").textContent = "Gesamt Monat: " + fmt(res.totalMonthHours) + " Std.";
+        $("histTotal").hidden = false;
+      }
+    } catch (e) {
+      $("histLoading").hidden = false;
+      $("histLoading").textContent = netErrorText() + " Bitte erneut versuchen.";
+    }
+    busy = false;
+  }
+
+  // ---------- Zurücksetzen ----------
+  function resetToPin() {
+    clearTimeout(resetTimer);
+    clearTimeout(idleTimer);
+    session = null; pin = ""; busy = false;
+    $("pinMsg").className = "pin-msg";
+    $("pinMsg").textContent = "";
+    $("schankOpt").checked = false;
+    $("histBody").replaceChildren();
+    renderDots();
+    renderBanner();
+    show("screenPin");
+  }
+
+  // ---------- Events ----------
+  // Tasten reagieren sofort beim Berühren (pointerdown) statt erst nach dem "click":
+  // Bei schnellem Tippen mit mehreren Fingern bzw. überlappenden Berührungen
+  // verwirft der Browser sonst einzelne Klicks.
   let lastPtr = 0;
   $("pad").addEventListener("pointerdown", (e) => {
     if (e.button > 0) return;
