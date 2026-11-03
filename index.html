@@ -207,24 +207,6 @@
     .total { background: var(--ink); color: #fff; border-radius: 16px; padding: 14px 18px; text-align: center; font-weight: 700; font-size: 1.15rem; }
     .empty, .spinner { text-align: center; color: var(--sub); padding: 18px; }
 
-    /* ---------- Verfügbarkeit ---------- */
-    .av-tabs { display: flex; gap: 8px; }
-    .av-tab { flex: 1; padding: 11px 6px; border-radius: 14px; border: 1px solid var(--edge); background: var(--tile); color: var(--ink); font: inherit; font-weight: 700; font-size: .95rem; cursor: pointer; touch-action: manipulation; }
-    .av-tab[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
-    .av-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .av-wd { background: none; border: 0; font: inherit; font-weight: 700; font-size: .82rem; color: var(--sub); padding: 8px 0; cursor: pointer; border-radius: 10px; touch-action: manipulation; }
-    .av-wd:active { background: rgba(20,51,45,.08); }
-    .av-day { aspect-ratio: 1 / 1.05; border-radius: 12px; border: 1px solid var(--edge); background: var(--tile); color: var(--ink); font: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
-    .av-day b { font-size: 1.05rem; line-height: 1; }
-    .av-day small { font-size: .62rem; font-weight: 700; line-height: 1; min-height: .65rem; }
-    .av-day.past { opacity: .4; pointer-events: none; }
-    .av-day.G, .av-day.F, .av-day.S { background: #DDF1E4; border-color: #8BCBA3; color: #0E5A32; }
-    .av-day.N { background: #F8DAD6; border-color: #E49A93; color: #8E241B; }
-    .av-day.U { background: #FDEFC4; border-color: #E5C463; color: #7A5A00; }
-    .av-day.blank { visibility: hidden; pointer-events: none; }
-    .av-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: .8rem; color: var(--sub); justify-content: center; }
-    .av-hint { font-size: .85rem; color: var(--sub); text-align: center; }
-
     @media (prefers-reduced-motion: reduce) {
       .dots.shake { animation: none; }
       .key, .btn, .dot { transition: none; }
@@ -292,10 +274,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
         Meine Arbeitszeiten
       </button>
-      <button class="btn ghost" id="btnAvail">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
-        Verfügbarkeit / Urlaub
-      </button>
       <button class="btn link" id="btnCancel">Abbrechen</button>
     </section>
 
@@ -331,29 +309,12 @@
       <button class="btn link" id="btnHistDone">Fertig</button>
     </section>
 
-    <!-- 5) Verfügbarkeit -->
-    <section class="screen" id="screenAvail" hidden>
-      <h1>Wann kannst du arbeiten?</h1>
-      <div id="avLoading" class="spinner">Laden …</div>
-      <div id="avBody" hidden>
-        <div class="av-tabs" id="avTabs"></div>
-        <div class="av-grid" id="avHead"></div>
-        <div class="av-grid" id="avGrid"></div>
-        <div class="av-legend" id="avLegend"></div>
-        <div class="av-hint">Tag antippen = Auswahl wechseln. Auf Mo, Di … tippen = alle Mo, Di … im Monat auf einmal (z. B. „jeden Freitag“).</div>
-      </div>
-      <div class="notice" id="avMsg" hidden></div>
-      <button class="btn primary" id="btnAvSave" disabled>Speichern</button>
-      <button class="btn link" id="btnAvBack">Zurück</button>
-    </section>
-
   </main>
 </div>
 
 <script>
   // URL der Apps-Script-Web-App (bei "Bereitstellungen verwalten -> Neue Version" bleibt sie gleich)
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxOJxviLIIfidTsMS8zzbZYa9rwH4th19HOooerig0CtOwgcB32QGfD6_aOiRKs7677dA/exec";
-  const AV_IDLE_SECONDS = 150;        // Inaktivität im Verfügbarkeits-Bildschirm
   const RESET_SECONDS = 5;            // Rücksprung nach Erfolg/Fehler
   const IDLE_SECONDS = 45;            // Rücksprung bei Inaktivität im Menü/Verlauf
   const FG_TIMEOUT_MS = 12000;        // Vordergrund: Wartezeit pro Versuch
@@ -366,7 +327,7 @@
   const LS = { queue: "cz_queue_v1", rejected: "cz_rejected_v1", pins: "cz_pins_v1", offset: "cz_offset_v1" };
 
   const $ = (id) => document.getElementById(id);
-  const screens = ["screenPin", "screenMenu", "screenResult", "screenHistory", "screenAvail"];
+  const screens = ["screenPin", "screenMenu", "screenResult", "screenHistory"];
 
   let pin = "";
   let session = null;      // { pin, name, displayName, canSchank, offline }
@@ -572,9 +533,9 @@
     el.hidden = lines.length === 0;
   }
 
-  function armIdle(sec) {
+  function armIdle() {
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(resetToPin, (sec || IDLE_SECONDS) * 1000);
+    idleTimer = setTimeout(resetToPin, IDLE_SECONDS * 1000);
   }
 
   // ---------- PIN-Screen ----------
@@ -603,7 +564,7 @@
       });
       if (res.status === "success") {
         rememberPin(pin, res);
-        session = { pin, name: res.name, displayName: res.displayName || res.name, canSchank: !!res.canSchank, avail: res.avail === true, offline: false };
+        session = { pin, name: res.name, displayName: res.displayName || res.name, canSchank: !!res.canSchank, offline: false };
         pin = "";
         openMenu();
       } else {
@@ -616,7 +577,7 @@
       const k = knownPin(pin);
       if (k) {
         // Keine Verbindung, aber die PIN wurde auf diesem Gerät schon einmal geprüft: Buchen ist trotzdem möglich
-        session = { pin, name: k.d, displayName: k.d, canSchank: k.s, avail: false, offline: true };
+        session = { pin, name: k.d, displayName: k.d, canSchank: k.s, offline: true };
         pin = "";
         openMenu();
       } else {
@@ -632,7 +593,6 @@
   function openMenu() {
     $("hello").textContent = "Hallo, " + session.displayName + "!";
     $("schankBox").hidden = !session.canSchank;
-    $("btnAvail").hidden = !session.avail;   // erst sichtbar, wenn der Server die Funktion kennt
     $("schankOpt").checked = false;
     $("offlineNote").hidden = !session.offline;
     setMenuDisabled(false);
@@ -641,7 +601,7 @@
   }
 
   function setMenuDisabled(d) {
-    ["btnKommen", "btnGehen", "btnHistory", "btnAvail", "btnCancel"].forEach((id) => { $(id).disabled = d; });
+    ["btnKommen", "btnGehen", "btnHistory", "btnCancel"].forEach((id) => { $(id).disabled = d; });
   }
 
   async function stamp(action) {
@@ -775,137 +735,6 @@
     busy = false;
   }
 
-  // ---------- Verfügbarkeit ----------
-  const AV_ORDER = ["", "G", "F", "S", "N", "U"];
-  const AV_TEXT = { G: "Früh+Spät", F: "Früh", S: "Spät", N: "Nicht", U: "Urlaub" };
-  const AV_WD = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-  let av = null;   // { months: [{key,label,daysInMonth,firstWeekday,days}], cur: 0, dirty: false }
-
-  function avNext(v) { return AV_ORDER[(AV_ORDER.indexOf(v || "") + 1) % AV_ORDER.length]; }
-
-  function avSetMsg(text, bad) {
-    const m = $("avMsg");
-    m.hidden = !text;
-    m.textContent = text || "";
-    m.style.background = bad ? "#F8DAD6" : "";
-    m.style.color = bad ? "#8E241B" : "";
-  }
-
-  function avTodayKey() {
-    const p = new Date(correctedNow()).toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }).split("-");
-    return { key: p[0] + "-" + p[1], day: parseInt(p[2], 10) };
-  }
-
-  function renderAvail() {
-    const mo = av.months[av.cur], today = avTodayKey();
-    const tabs = $("avTabs");
-    tabs.replaceChildren();
-    av.months.forEach((m, i) => {
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "av-tab"; b.textContent = m.label.replace(/ \d{4}$/, "");
-      b.setAttribute("aria-pressed", i === av.cur ? "true" : "false");
-      b.addEventListener("click", () => { if (i !== av.cur) { av.cur = i; avSetMsg(""); renderAvail(); } });
-      tabs.appendChild(b);
-    });
-    const head = $("avHead");
-    head.replaceChildren();
-    AV_WD.forEach((w, i) => {
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "av-wd"; b.textContent = w;
-      b.addEventListener("click", () => avSetWeekday(i));
-      head.appendChild(b);
-    });
-    const grid = $("avGrid");
-    grid.replaceChildren();
-    const lead = (mo.firstWeekday + 6) % 7;   // Montag = 0
-    for (let i = 0; i < lead; i++) { const d = document.createElement("div"); d.className = "av-day blank"; grid.appendChild(d); }
-    for (let d = 1; d <= mo.daysInMonth; d++) {
-      const v = mo.days[String(d)] || "";
-      const b = document.createElement("button");
-      b.type = "button"; b.dataset.d = String(d);
-      b.className = "av-day" + (v ? " " + v : "") + (mo.key === today.key && d < today.day ? " past" : "");
-      const n = document.createElement("b"); n.textContent = String(d);
-      const t = document.createElement("small"); t.textContent = v ? AV_TEXT[v] : "";
-      b.appendChild(n); b.appendChild(t);
-      grid.appendChild(b);
-    }
-    $("btnAvSave").disabled = !av.dirty;
-  }
-
-  function avIsPast(mo, d) { const t = avTodayKey(); return mo.key === t.key && d < t.day; }
-
-  function avSetWeekday(wdIdx) {
-    const mo = av.months[av.cur], lead = (mo.firstWeekday + 6) % 7;
-    const days = [];
-    for (let d = 1; d <= mo.daysInMonth; d++) if (((lead + d - 1) % 7) === wdIdx && !avIsPast(mo, d)) days.push(d);
-    if (!days.length) return;
-    const next = avNext(mo.days[String(days[0])] || "");
-    days.forEach((d) => { if (next) mo.days[String(d)] = next; else delete mo.days[String(d)]; });
-    mo.touched = true; av.dirty = true; avSetMsg(""); renderAvail();
-  }
-
-  function avTapDay(e) {
-    const b = e.target.closest("button.av-day");
-    if (!b || !b.dataset.d) return;
-    const mo = av.months[av.cur], k = b.dataset.d;
-    const next = avNext(mo.days[k] || "");
-    if (next) mo.days[k] = next; else delete mo.days[k];
-    mo.touched = true; av.dirty = true; avSetMsg("");
-    b.className = "av-day" + (next ? " " + next : "");
-    b.lastChild.textContent = next ? AV_TEXT[next] : "";
-    $("btnAvSave").disabled = false;
-  }
-
-  async function openAvail() {
-    if (busy || !session) return;
-    busy = true;
-    av = null;
-    $("avLoading").hidden = false; $("avLoading").textContent = "Laden …";
-    $("avBody").hidden = true; avSetMsg("");
-    $("btnAvSave").disabled = true;
-    show("screenAvail");
-    armIdle(AV_IDLE_SECONDS);
-    try {
-      const res = await api({ action: "getAvail", pin: session.pin });
-      if (res.status !== "success") {
-        $("avLoading").textContent = res.message || "Fehler beim Laden.";
-      } else {
-        av = { months: res.months, cur: 0, dirty: false };
-        $("avLoading").hidden = true; $("avBody").hidden = false;
-        $("avLegend").textContent = "Grün = kann (Früh+Spät, nur Früh, nur Spät) · Rot = nicht · Gelb = Urlaub · leer = keine Angabe";
-        renderAvail();
-      }
-    } catch (e) {
-      $("avLoading").textContent = netErrorText() + " Bitte erneut versuchen.";
-    }
-    busy = false;
-  }
-
-  async function saveAvail() {
-    if (busy || !av || !av.dirty) return;
-    busy = true;
-    $("btnAvSave").disabled = true;
-    avSetMsg("Speichere …");
-    try {
-      // alle geänderten Monate speichern (der Server ersetzt pro Monat die gesamte Auswahl)
-      for (let i = 0; i < av.months.length; i++) {
-        const m = av.months[i];
-        if (!m.touched) continue;
-        const res = await api({ action: "setAvail", pin: session.pin, month: m.key, days: m.days });
-        if (res.status !== "success") { const er = new Error(res.message || "Fehler"); er.fromServer = true; throw er; }
-      }
-      av.months.forEach((m) => { m.touched = false; });
-      av.dirty = false;
-      avSetMsg("Gespeichert. Danke!");
-      renderAvail();
-      $("btnAvSave").disabled = true;
-    } catch (e) {
-      avSetMsg(e && e.fromServer ? e.message : netErrorText() + " Nicht gespeichert, bitte erneut tippen.", true);
-      $("btnAvSave").disabled = false;
-    }
-    busy = false;
-  }
-
   // ---------- Zurücksetzen ----------
   function resetToPin() {
     clearTimeout(resetTimer);
@@ -947,10 +776,6 @@
   $("btnKommen").addEventListener("click", () => stamp("kommen"));
   $("btnGehen").addEventListener("click", () => stamp("gehen"));
   $("btnHistory").addEventListener("click", openHistory);
-  $("btnAvail").addEventListener("click", openAvail);
-  $("avGrid").addEventListener("click", avTapDay);
-  $("btnAvSave").addEventListener("click", saveAvail);
-  $("btnAvBack").addEventListener("click", () => { if (session) openMenu(); else resetToPin(); });
   $("btnCancel").addEventListener("click", resetToPin);
   $("btnNow").addEventListener("click", resetToPin);
   $("btnHistBack").addEventListener("click", () => { if (session) openMenu(); else resetToPin(); });
@@ -959,7 +784,6 @@
   // Aktivität verlängert die Inaktivitäts-Frist (Menü + Verlauf)
   document.addEventListener("pointerdown", () => {
     if (!$("screenMenu").hidden || !$("screenHistory").hidden) armIdle();
-    else if (!$("screenAvail").hidden) armIdle(AV_IDLE_SECONDS);
   });
 
   // Hardware-Tastatur (falls vorhanden)
