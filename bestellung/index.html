@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14332D">
+<title>Cantina Bestellung</title>
+<style>
+  :root { --ink:#14332D; --sub:#5A6F69; --sheet:#F3F5F4; --tile:#fff; --edge:#C9D4D0; --lip:#B5C3BE; --green:#137A45; --red:#C2352A; --amber:#FDEFC4; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--sheet); color: var(--ink); font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+  body { padding-bottom: 110px; }
+  header { background: var(--ink); color: #fff; padding: 14px 16px 0; }
+  .tools { position: sticky; top: 0; z-index: 5; background: var(--ink); padding: 0 16px 10px; }
+  header h1 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+  header p { margin: 2px 0 12px; font-size: .8rem; color: #A9C1BA; }
+  .search { width: 100%; border: 0; border-radius: 12px; padding: 11px 14px; font: inherit; font-size: 1rem; background: #fff; color: var(--ink); }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; border: 1px solid #3C5C54; background: transparent; color: #fff; border-radius: 999px; padding: 7px 14px; font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: #fff; color: var(--ink); border-color: #fff; }
+  main { padding: 12px 12px 0; max-width: 760px; margin: 0 auto; }
+  .notice { background: var(--amber); border-radius: 12px; padding: 10px 14px; font-size: .9rem; margin-bottom: 12px; }
+  .notice.err { background: #F8DAD6; color: #8E241B; }
+  .sup { margin: 18px 4px 8px; font-size: .8rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--sub); }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  @media (min-width: 560px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  .card { background: var(--tile); border: 1px solid var(--edge); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 2px 0 var(--lip); }
+  .card.on { border-color: var(--green); box-shadow: 0 2px 0 #8BCBA3; }
+  .ph { aspect-ratio: 4 / 3; background: #E9EFEC; display: flex; align-items: center; justify-content: center; color: #9BB0A9; font-size: 2.2rem; font-weight: 800; overflow: hidden; }
+  .ph img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  .meta { padding: 8px 10px 4px; flex: 1; }
+  .name { font-weight: 800; font-size: .95rem; line-height: 1.2; }
+  .unit { font-size: .78rem; color: var(--sub); margin-top: 2px; }
+  .step { display: grid; grid-template-columns: 44px 1fr 44px; gap: 6px; padding: 8px 10px 10px; align-items: center; }
+  .step button { height: 44px; border-radius: 12px; border: 1px solid var(--edge); background: var(--sheet); font: inherit; font-size: 1.5rem; font-weight: 800; color: var(--ink); cursor: pointer; touch-action: manipulation; }
+  .step button:active { background: #E2EAE7; }
+  .step input { width: 100%; height: 44px; border: 1px solid var(--edge); border-radius: 12px; text-align: center; font: inherit; font-size: 1.2rem; font-weight: 800; color: var(--ink); background: #fff; -moz-appearance: textfield; }
+  .step input::-webkit-outer-spin-button, .step input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .card.on .step input { border-color: var(--green); color: var(--green); }
+  .empty { text-align: center; color: var(--sub); padding: 30px 10px; }
+  .custom { background: var(--tile); border: 1px dashed var(--edge); border-radius: 16px; padding: 12px; margin-top: 18px; }
+  .custom h2 { margin: 0 0 8px; font-size: .95rem; }
+  .crow { display: grid; grid-template-columns: 1fr 70px 38px; gap: 6px; margin-bottom: 6px; }
+  .crow input { height: 44px; border: 1px solid var(--edge); border-radius: 12px; padding: 0 10px; font: inherit; font-size: 1rem; min-width: 0; }
+  .crow button { border: 0; background: none; font-size: 1.3rem; color: var(--sub); cursor: pointer; }
+  .link { background: none; border: 0; color: var(--green); font: inherit; font-weight: 800; padding: 8px 0; cursor: pointer; }
+  .who { display: block; width: 100%; margin-top: 14px; height: 46px; border: 1px solid var(--edge); border-radius: 12px; padding: 0 12px; font: inherit; font-size: 1rem; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--sheet) 70%, rgba(243,245,244,0)); z-index: 6; }
+  .send { display: block; width: 100%; max-width: 736px; margin: 0 auto; height: 56px; border: 0; border-radius: 16px; background: var(--green); color: #fff; font: inherit; font-size: 1.1rem; font-weight: 800; box-shadow: 0 4px 0 #0C5A32; cursor: pointer; }
+  .send:disabled { background: #9DB0AA; box-shadow: 0 4px 0 #7E918B; }
+  .send:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #0C5A32; }
+  dialog { border: 0; border-radius: 20px; padding: 0; width: min(92vw, 460px); color: var(--ink); }
+  dialog::backdrop { background: rgba(20,51,45,.55); }
+  .dlg { padding: 18px; }
+  .dlg h2 { margin: 0 0 10px; font-size: 1.2rem; }
+  .dlg ul { list-style: none; margin: 0 0 14px; padding: 0; max-height: 46vh; overflow: auto; }
+  .dlg li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid #E3EAE7; }
+  .dlg li b { white-space: nowrap; }
+  .dlg .row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
+  .btn2 { height: 50px; border-radius: 14px; border: 1px solid var(--edge); background: #fff; font: inherit; font-weight: 800; font-size: 1rem; color: var(--ink); cursor: pointer; }
+  .btn2.go { background: var(--green); border-color: var(--green); color: #fff; }
+  .ok { text-align: center; padding: 26px 18px; }
+  .ok .tick { width: 64px; height: 64px; border-radius: 50%; background: var(--green); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bestellung</h1>
+  <p id="sub">Was muss nachbestellt werden? Menge eintragen, dann Senden.</p>
+</header>
+<div class="tools">
+  <input class="search" id="q" type="search" placeholder="Artikel suchen …" autocomplete="off">
+  <div class="chips" id="chips"></div>
+</div>
+<main>
+  <div class="notice" id="note" hidden></div>
+  <div id="list"></div>
+  <div class="custom">
+    <h2>Anderer Artikel (nicht in der Liste)</h2>
+    <div id="customRows"></div>
+    <button class="link" id="addCustom" type="button">+ Artikel hinzufügen</button>
+  </div>
+  <input class="who" id="who" type="text" placeholder="Dein Name (optional)" maxlength="40" autocomplete="given-name">
+</main>
+<div class="bar"><button class="send" id="send" disabled>Senden</button></div>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+  // Adresse der Bestell-Web-App (Apps Script, Bereitstellung als Web-App). Leer = noch nicht eingerichtet.
+  const ORDER_URL = "";
+
+  const LS = { items: "cb_items_v1", queue: "cb_queue_v1", who: "cb_who_v1" };
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignorieren */ } }
+  };
+
+  let items = store.get(LS.items, []);
+  const qty = {};               // id -> Menge
+  let cat = "";                 // gewählte Kategorie ("" = alle)
+  let customs = [];             // [{name, qty}]
+  let queue = store.get(LS.queue, []);   // gesicherte, noch nicht übertragene Bestellungen
+
+  function note(text, err) { const n = $("note"); n.hidden = !text; n.textContent = text || ""; n.className = "notice" + (err ? " err" : ""); }
+  function newId() { try { if (crypto.randomUUID) return crypto.randomUUID(); } catch (e) { /* */ } return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+
+  function totalLines() {
+    return Object.keys(qty).filter((k) => qty[k] > 0).length + customs.filter((c) => c.name.trim() && c.qty > 0).length;
+  }
+  function refreshBar() {
+    const n = totalLines();
+    $("send").disabled = n === 0;
+    $("send").textContent = n ? "Senden (" + n + " Artikel)" : "Senden";
+  }
+
+  function renderChips() {
+    const cats = [...new Set(items.map((i) => i.cat))];
+    const box = $("chips");
+    box.replaceChildren();
+    if (cats.length < 2) return;
+    [["", "Alle"]].concat(cats.map((c) => [c, c])).forEach(([v, label]) => {
+      const b = el("button", "chip", label);
+      b.type = "button"; b.setAttribute("aria-pressed", v === cat ? "true" : "false");
+      b.addEventListener("click", () => { cat = v; renderChips(); renderList(); });
+      box.appendChild(b);
+    });
+  }
+
+  function setQty(id, v, input, card) {
+    v = Math.max(0, Math.min(999, Math.round(v * 100) / 100 || 0));
+    if (v > 0) qty[id] = v; else delete qty[id];
+    input.value = v > 0 ? String(v) : "";
+    card.classList.toggle("on", v > 0);
+    refreshBar();
+  }
+
+  function renderList() {
+    const root = $("list");
+    root.replaceChildren();
+    const q = $("q").value.trim().toLowerCase();
+    const shown = items.filter((i) => (!cat || i.cat === cat) && (!q || i.name.toLowerCase().includes(q) || i.sup.toLowerCase().includes(q)));
+    if (!items.length) { root.appendChild(el("div", "empty", ORDER_URL ? "Artikelliste wird geladen …" : "Noch nicht eingerichtet.")); return; }
+    if (!shown.length) { root.appendChild(el("div", "empty", "Nichts gefunden. Unten kannst du einen anderen Artikel hinzufügen.")); return; }
+    let lastSup = null, grid = null;
+    shown.sort((a, b) => a.sup.localeCompare(b.sup, "de") || a.cat.localeCompare(b.cat, "de") || a.name.localeCompare(b.name, "de"));
+    shown.forEach((it) => {
+      if (it.sup !== lastSup) { lastSup = it.sup; root.appendChild(el("div", "sup", it.sup)); grid = el("div", "grid"); root.appendChild(grid); }
+      const card = el("div", "card" + (qty[it.id] > 0 ? " on" : ""));
+      const ph = el("div", "ph");
+      if (it.photo) {
+        const img = document.createElement("img");
+        img.loading = "lazy"; img.alt = ""; img.referrerPolicy = "no-referrer";
+        img.addEventListener("error", () => { img.remove(); ph.textContent = it.name.charAt(0).toUpperCase(); });
+        img.src = it.photo; ph.appendChild(img);
+      } else ph.textContent = it.name.charAt(0).toUpperCase();
+      const meta = el("div", "meta");
+      meta.appendChild(el("div", "name", it.name));
+      if (it.unit) meta.appendChild(el("div", "unit", "Menge in: " + it.unit));
+      const step = el("div", "step");
+      const minus = el("button", "", "−"), plus = el("button", "", "+");
+      minus.type = plus.type = "button"; minus.setAttribute("aria-label", "weniger"); plus.setAttribute("aria-label", "mehr");
+      const input = document.createElement("input");
+      input.type = "number"; input.inputMode = "decimal"; input.min = "0"; input.max = "999"; input.placeholder = "0";
+      input.value = qty[it.id] > 0 ? String(qty[it.id]) : "";
+      minus.addEventListener("click", () => setQty(it.id, (qty[it.id] || 0) - 1, input, card));
+      plus.addEventListener("click", () => setQty(it.id, (qty[it.id] || 0) + 1, input, card));
+      input.addEventListener("input", () => setQty(it.id, parseFloat(String(input.value).replace(",", ".")), { set value(x) { /* Eingabe nicht überschreiben */ } }, card));
+      input.addEventListener("blur", () => { input.value = qty[it.id] > 0 ? String(qty[it.id]) : ""; });
+      step.append(minus, input, plus);
+      card.append(ph, meta, step);
+      grid.appendChild(card);
+    });
+  }
+
+  function renderCustoms() {
+    const box = $("customRows");
+    box.replaceChildren();
+    customs.forEach((c, i) => {
+      const row = el("div", "crow");
+      const n = document.createElement("input"); n.type = "text"; n.placeholder = "Artikel"; n.maxLength = 80; n.value = c.name;
+      const a = document.createElement("input"); a.type = "number"; a.inputMode = "decimal"; a.placeholder = "Menge"; a.min = "0"; a.value = c.qty || "";
+      const x = el("button", "", "×"); x.type = "button"; x.setAttribute("aria-label", "entfernen");
+      n.addEventListener("input", () => { c.name = n.value; refreshBar(); });
+      a.addEventListener("input", () => { c.qty = parseFloat(String(a.value).replace(",", ".")) || 0; refreshBar(); });
+      x.addEventListener("click", () => { customs.splice(i, 1); renderCustoms(); refreshBar(); });
+      row.append(n, a, x); box.appendChild(row);
+    });
+  }
+
+  // ---------- Laden ----------
+  async function loadItems() {
+    if (!ORDER_URL) { note("Diese Seite ist noch nicht mit der Bestelltabelle verbunden.", true); return; }
+    try {
+      const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 12000);
+      const res = await fetch(ORDER_URL, { signal: ctrl.signal }); clearTimeout(t);
+      const j = JSON.parse(await res.text());
+      if (j.status !== "ok" || !Array.isArray(j.items)) throw new Error("bad");
+      items = j.items; store.set(LS.items, items);
+      Object.keys(qty).forEach((k) => { if (!items.some((i) => i.id === k)) delete qty[k]; });
+      if (!queue.length) note("");
+    } catch (e) {
+      if (items.length) note("Keine Verbindung: Die zuletzt geladene Liste wird angezeigt. Senden klappt, sobald wieder Netz da ist.");
+      else note("Artikelliste konnte nicht geladen werden. Bitte WLAN prüfen und Seite neu laden.", true);
+    }
+    renderChips(); renderList(); refreshBar();
+  }
+
+  // ---------- Senden ----------
+  function buildLines() {
+    const lines = Object.keys(qty).filter((k) => qty[k] > 0).map((id) => ({ id, qty: qty[id] }));
+    customs.forEach((c) => { if (c.name.trim() && c.qty > 0) lines.push({ custom: true, name: c.name.trim(), qty: c.qty }); });
+    return lines;
+  }
+  function labelFor(l) { if (l.custom) return l.name; const it = items.find((i) => i.id === l.id); return it ? it.name : l.id.split("|")[1]; }
+  function unitFor(l) { if (l.custom) return ""; const it = items.find((i) => i.id === l.id); return it && it.unit ? " " + it.unit : ""; }
+
+  function openConfirm() {
+    const lines = buildLines();
+    if (!lines.length) return;
+    const body = $("dlgBody"); body.replaceChildren();
+    body.appendChild(el("h2", "", "Bestellung senden?"));
+    const ul = document.createElement("ul");
+    lines.forEach((l) => { const li = el("li"); li.appendChild(el("span", "", labelFor(l))); li.appendChild(el("b", "", l.qty + unitFor(l))); ul.appendChild(li); });
+    body.appendChild(ul);
+    const row = el("div", "row");
+    const no = el("button", "btn2", "Zurück"); no.type = "button"; no.addEventListener("click", () => $("dlg").close());
+    const go = el("button", "btn2 go", "Jetzt senden"); go.type = "button"; go.addEventListener("click", () => doSend(lines, go));
+    row.append(no, go); body.appendChild(row);
+    $("dlg").showModal();
+  }
+
+  async function post(entry) {
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const res = await fetch(ORDER_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ action: "order" }, entry)), signal: ctrl.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return JSON.parse(await res.text());
+    } finally { clearTimeout(t); }
+  }
+
+  function showDone(title, text, warn) {
+    const body = $("dlgBody"); body.replaceChildren();
+    const box = el("div", "ok");
+    const tick = el("div", "tick", warn ? "⏳" : "✓"); if (warn) tick.style.background = "#B7791F";
+    box.append(tick, el("h2", "", title), el("p", "", text));
+    const b = el("button", "btn2 go", "Fertig"); b.type = "button"; b.style.width = "100%"; b.addEventListener("click", () => $("dlg").close());
+    box.appendChild(b); body.appendChild(box);
+    if (!$("dlg").open) $("dlg").showModal();
+  }
+
+  function clearForm() {
+    Object.keys(qty).forEach((k) => delete qty[k]);
+    customs = []; renderCustoms(); renderList(); refreshBar();
+  }
+
+  async function doSend(lines, btn) {
+    btn.disabled = true; btn.textContent = "Sende …";
+    const who = $("who").value.trim(); store.set(LS.who, who);
+    const entry = { requestId: newId(), who, lines, ts: Date.now() };
+    try {
+      const res = await postWithRetry(entry);
+      if (res.status === "success") { clearForm(); showDone("Gesendet", "Danke! Die Bestellung ist angekommen."); return; }
+      showDone("Nicht gespeichert", res.message || "Unbekannter Fehler.", true);
+    } catch (e) {
+      queue.push(entry); store.set(LS.queue, queue); clearForm();
+      showDone("Gesichert", "Gerade kein Netz. Die Bestellung ist auf diesem Handy gesichert und wird automatisch gesendet, sobald du wieder Empfang hast. Seite bitte nicht schließen.", true);
+      note("1 Bestellung wartet auf Übertragung.");
+    }
+  }
+
+  async function postWithRetry(entry) {
+    let last;
+    for (let i = 0; i < 2; i++) {
+      try { const r = await post(entry); if (!(r && r.retry === true && i === 0)) return r; last = new Error("busy"); } catch (e) { last = e; }
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    throw last;
+  }
+
+  let flushing = false;
+  async function flushQueue() {
+    if (flushing || !queue.length || !ORDER_URL) return;
+    flushing = true;
+    try {
+      while (queue.length) {
+        let r;
+        try { r = await post(queue[0]); } catch (e) { break; }
+        if (r && r.retry === true) break;
+        queue.shift(); store.set(LS.queue, queue);   // Erfolg oder endgültige Ablehnung: erledigt
+      }
+      note(queue.length ? queue.length + " Bestellung(en) warten auf Übertragung." : "");
+    } finally { flushing = false; }
+  }
+
+  // ---------- Start ----------
+  $("who").value = store.get(LS.who, "");
+  $("q").addEventListener("input", renderList);
+  $("addCustom").addEventListener("click", () => { customs.push({ name: "", qty: 0 }); renderCustoms(); const r = $("customRows").lastChild; if (r) r.firstChild.focus(); });
+  $("send").addEventListener("click", openConfirm);
+  window.addEventListener("online", () => { flushQueue(); loadItems(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { flushQueue(); } });
+  setInterval(flushQueue, 30000);
+  renderChips(); renderList(); renderCustoms(); refreshBar();
+  if (queue.length) note(queue.length + " Bestellung(en) warten auf Übertragung.");
+  loadItems().then(flushQueue);
+</script>
+</body>
+</html>
